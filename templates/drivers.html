@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Quản lý tài xế - DriverGuard AI</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/drivers.css') }}">
+</head>
+<body>
+
+<div class="app">
+
+    <aside class="sidebar">
+        <div class="logo">
+            <div class="logo-icon">🛡</div>
+            <div>
+                <h2>DriverGuard</h2>
+                <span>AI SAFETY</span>
+            </div>
+        </div>
+
+        <nav class="menu">
+            <a href="/dashboard">📊 Dashboard</a>
+            <a href="/drivers" class="active">👥 Tài xế</a>
+            <a href="/vehicles">🚘 Quản lý xe</a>
+            <a href="/shifts">⏱ Ca làm việc</a>
+            <a href="/camera">📷 Camera AI</a>
+            <a href="/alerts">⚠️ Lịch sử cảnh báo</a>
+            <a href="/stats">📈 Thống kê</a>
+            <a href="/settings">⚙️ Cài đặt</a>
+            <a href="/login">🚪 Đăng xuất</a>
+        </nav>
+    </aside>
+
+    <main class="main">
+
+        <header class="header">
+            <div>
+                <h1>Quản lý tài xế</h1>
+                <p>Thêm, sửa, quản lý thông tin tài xế và ảnh nhận diện khuôn mặt</p>
+            </div>
+
+            <div class="header-right">
+                <input class="search-box" placeholder="Tìm kiếm...">
+                <div class="user-box">
+                    <div class="avatar">A</div>
+                    <div>
+                        <strong>Admin System</strong>
+                        <p>Quản trị viên</p>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <section class="content">
+
+            <div class="driver-summary">
+                <div class="summary-box">
+                    <h3>24</h3>
+                    <p>Tổng tài xế</p>
+                </div>
+
+                <div class="summary-box">
+                    <h3>18</h3>
+                    <p>Đang hoạt động</p>
+                </div>
+
+                <div class="summary-box">
+                    <h3>4</h3>
+                    <p>Đang nghỉ</p>
+                </div>
+
+                <div class="summary-box">
+                    <h3>2</h3>
+                    <p>Nguy cơ cao</p>
+                </div>
+            </div>
+
+            <div class="page-actions">
+                <div class="filter-group">
+                    <input type="text" placeholder="Tìm tên tài xế...">
+
+                    <select>
+                        <option>Tất cả xe</option>
+                        <option>51A-12345</option>
+                        <option>51B-67890</option>
+                        <option>60C-45678</option>
+                    </select>
+
+                    <select>
+                        <option>Tất cả ca</option>
+                        <option>Ca sáng</option>
+                        <option>Ca chiều</option>
+                        <option>Ca đêm</option>
+                    </select>
+
+                    <select>
+                        <option>Tất cả trạng thái</option>
+                        <option>Hoạt động</option>
+                        <option>Cảnh báo</option>
+                        <option>Nguy hiểm</option>
+                    </select>
+                </div>
+
+                <div class="action-group">
+                    <button class="btn-outline">Xuất Excel</button>
+                    <a href="/add-driver" class="btn-main" style="width:auto;padding:11px 18px;">+ Thêm tài xế</a>
+                </div>
+            </div>
+
+            <div class="card driver-table-card">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Tài xế</th>
+                            <th>Số điện thoại</th>
+                            <th>Biển số xe</th>
+                            <th>Ca làm việc</th>
+                            <th>Trạng thái</th>
+                            <th>Cảnh báo</th>
+                            <th>Hành động</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        <tr>
+                            <td>
+                                <div class="driver-info">
+                                    <div class="driver-avatar">NA</div>
+                                    <div>
+                                        <div class="driver-name">Nguyễn Văn A</div>
+                                        <div class="driver-id">ID: DRV-001</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>0901234567</td>
+                            <td><span class="plate">51A-12345</span></td>
+                            <td>Ca sáng</td>
+                            <td><span class="badge badge-success">Hoạt động</span></td>
+                            <td><span class="badge badge-warning">2 lần</span></td>
+                            <td>
+                                <button class="btn-small btn-view">Xem</button>
+                                <button class="btn-small btn-edit">Sửa</button>
+                                <button class="btn-small btn-delete">Xóa</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>
+                                <div class="driver-info">
+                                    <div class="driver-avatar">TB</div>
+                                    <div>
+                                        <div class="driver-name">Trần Văn B</div>
+                                        <div class="driver-id">ID: DRV-002</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>0912345678</td>
+                            <td><span class="plate">51B-67890</span></td>
+                            <td>Ca chiều</td>
+                            <td><span class="badge badge-warning">Cảnh báo</span></td>
+                            <td><span class="badge badge-danger">7 lần</span></td>
+                            <td>
+                                <button class="btn-small btn-view">Xem</button>
+                                <button class="btn-small btn-edit">Sửa</button>
+                                <button class="btn-small btn-delete">Xóa</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>
+                                <div class="driver-info">
+                                    <div class="driver-avatar">LC</div>
+                                    <div>
+                                        <div class="driver-name">Lê Hoàng C</div>
+                                        <div class="driver-id">ID: DRV-003</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>0923456789</td>
+                            <td><span class="plate">60C-45678</span></td>
+                            <td>Ca đêm</td>
+                            <td><span class="badge badge-success">Hoạt động</span></td>
+                            <td><span class="badge badge-warning">1 lần</span></td>
+                            <td>
+                                <button class="btn-small btn-view">Xem</button>
+                                <button class="btn-small btn-edit">Sửa</button>
+                                <button class="btn-small btn-delete">Xóa</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>
+                                <div class="driver-info">
+                                    <div class="driver-avatar">PD</div>
+                                    <div>
+                                        <div class="driver-name">Phạm Minh D</div>
+                                        <div class="driver-id">ID: DRV-004</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>0934567890</td>
+                            <td><span class="plate">29H-88999</span></td>
+                            <td>Ca sáng</td>
+                            <td><span class="badge badge-danger">Nguy hiểm</span></td>
+                            <td><span class="badge badge-danger">12 lần</span></td>
+                            <td>
+                                <button class="btn-small btn-view">Xem</button>
+                                <button class="btn-small btn-edit">Sửa</button>
+                                <button class="btn-small btn-delete">Xóa</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+        </section>
+
+    </main>
+
+</div>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/logout.css') }}">
+<script src="{{ url_for('static', filename='js/logout.js') }}"></script>
+
+<div class="logout-modal" id="logoutModal">
+
+    <div class="logout-box">
+
+        <div class="logout-icon">
+            ⎋
+        </div>
+
+        <h2>Đăng xuất?</h2>
+
+        <p>
+            Bạn có chắc muốn đăng xuất khỏi hệ thống DriverGuard AI?
+        </p>
+
+        <div class="logout-actions">
+
+            <button
+                class="btn-logout-cancel"
+                onclick="closeLogoutModal()"
+            >
+                Hủy
+            </button>
+
+            <a
+                href="/login"
+                class="btn-logout"
+            >
+                Đăng xuất
+            </a>
+
+        </div>
+
+    </div>
+
+</div>
+</body>
+</html>

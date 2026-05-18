@@ -1,0 +1,38 @@
+.register-right{
+    width:540px;
+}
+
+.register-form{
+    max-width:450px;
+}
+
+.form-row{
+    display:grid;
+
+    grid-template-columns:1fr 1fr;
+
+    gap:14px;
+}
+
+.feature-list{
+    margin-top:35px;
+
+    display:flex;
+    flex-direction:column;
+
+    gap:14px;
+
+    text-align:left;
+}
+
+.feature-list div{
+    background:rgba(255,255,255,0.08);
+
+    border:1px solid rgba(0,229,255,0.22);
+
+    padding:13px 16px;
+
+    border-radius:12px;
+
+    color:rgba(255,255,255,0.9);
+}

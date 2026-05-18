@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Lịch sử cảnh báo - DriverGuard AI</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/alerts.css') }}">
+</head>
+<body>
+
+<div class="app">
+
+    <aside class="sidebar">
+        <div class="logo">
+            <div class="logo-icon">🛡</div>
+            <div>
+                <h2>DriverGuard</h2>
+                <span>AI SAFETY</span>
+            </div>
+        </div>
+
+        <nav class="menu">
+            <a href="/dashboard">📊 Dashboard</a>
+            <a href="/drivers">👥 Tài xế</a>
+            <a href="/vehicles">🚘 Quản lý xe</a>
+            <a href="/shifts">⏱ Ca làm việc</a>
+            <a href="/camera">📷 Camera AI</a>
+            <a href="/alerts" class="active">⚠️ Lịch sử cảnh báo</a>
+            <a href="/stats">📈 Thống kê</a>
+            <a href="/settings">⚙️ Cài đặt</a>
+            <a href="/login">🚪 Đăng xuất</a>
+        </nav>
+    </aside>
+
+    <main class="main">
+
+        <header class="header">
+            <div>
+                <h1>Lịch sử cảnh báo</h1>
+                <p>Theo dõi toàn bộ cảnh báo AI phát hiện trong hệ thống</p>
+            </div>
+
+            <div class="header-right">
+                <input class="search-box" placeholder="Tìm kiếm...">
+                <div class="user-box">
+                    <div class="avatar">A</div>
+                    <div>
+                        <strong>Admin System</strong>
+                        <p>Quản trị viên</p>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <section class="content">
+
+            <div class="alert-summary">
+                <div class="alert-card">
+                    <h3>124</h3>
+                    <p>Tổng cảnh báo</p>
+                </div>
+
+                <div class="alert-card">
+                    <h3>12</h3>
+                    <p>Hôm nay</p>
+                </div>
+
+                <div class="alert-card">
+                    <h3>4</h3>
+                    <p>Nguy hiểm cao</p>
+                </div>
+
+                <div class="alert-card">
+                    <h3>89%</h3>
+                    <p>Đã xử lý</p>
+                </div>
+            </div>
+
+            <div class="alert-actions">
+
+                <div class="alert-filters">
+
+                    <input type="text" placeholder="Tìm tài xế...">
+
+                    <select>
+                        <option>Tất cả cảnh báo</option>
+                        <option>Nhắm mắt lâu</option>
+                        <option>Ngáp liên tục</option>
+                        <option>Ngủ gật</option>
+                    </select>
+
+                    <select>
+                        <option>Tất cả mức độ</option>
+                        <option>Cảnh báo</option>
+                        <option>Nguy hiểm</option>
+                    </select>
+
+                    <select>
+                        <option>Tất cả trạng thái</option>
+                        <option>Đã xử lý</option>
+                        <option>Chưa xử lý</option>
+                    </select>
+
+                </div>
+
+                <button class="btn-main" style="width:auto;padding:12px 18px;">
+                    Xuất báo cáo
+                </button>
+
+            </div>
+
+            <div class="alert-grid">
+
+                <div class="alert-item">
+
+                    <div class="alert-image">
+
+                        <div class="alert-live">
+                            ⚠️ NGỦ GẬT
+                        </div>
+
+                        <div class="alert-time">
+                            18:21:02
+                        </div>
+
+                        👤
+
+                    </div>
+
+                    <div class="alert-content">
+
+                        <div class="alert-top">
+                            <div class="alert-title">
+                                Cảnh báo nguy hiểm
+                            </div>
+
+                            <span class="badge badge-danger">
+                                Cao
+                            </span>
+                        </div>
+
+                        <div class="alert-driver">
+
+                            <div class="alert-avatar">
+                                NA
+                            </div>
+
+                            <div>
+                                <div class="alert-driver-name">
+                                    Nguyễn Văn A
+                                </div>
+
+                                <div class="alert-driver-car">
+                                    Xe tải - 51A-12345
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <div class="alert-info">
+
+                            <div class="alert-info-box">
+                                <span>EAR</span>
+                                <strong>0.18</strong>
+                            </div>
+
+                            <div class="alert-info-box">
+                                <span>MAR</span>
+                                <strong>0.62</strong>
+                            </div>
+
+                            <div class="alert-info-box">
+                                <span>Số lần</span>
+                                <strong>3</strong>
+                            </div>
+
+                            <div class="alert-info-box">
+                                <span>Độ nguy hiểm</span>
+                                <strong>92%</strong>
+                            </div>
+
+                        </div>
+
+                        <div class="alert-actions-buttons">
+
+                            <button class="btn-alert btn-view">
+                                Xem
+                            </button>
+
+                            <button class="btn-alert btn-process">
+                                Xử lý
+                            </button>
+
+                            <button class="btn-alert btn-danger">
+                                Gửi quản lý
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class="alert-item">
+
+                    <div class="alert-image">
+
+                        <div class="alert-live">
+                            😮 NGÁP
+                        </div>
+
+                        <div class="alert-time">
+                            16:11:44
+                        </div>
+
+                        👤
+
+                    </div>
+
+                    <div class="alert-content">
+
+                        <div class="alert-top">
+                            <div class="alert-title">
+                                Cảnh báo mức trung bình
+                            </div>
+
+                            <span class="badge badge-warning">
+                                Trung bình
+                            </span>
+                        </div>
+
+                        <div class="alert-driver">
+
+                            <div class="alert-avatar">
+                                TB
+                            </div>
+
+                            <div>
+                                <div class="alert-driver-name">
+                                    Trần Văn B
+                                </div>
+
+                                <div class="alert-driver-car">
+                                    Xe khách - 51B-67890
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <div class="alert-info">
+
+                            <div class="alert-info-box">
+                                <span>EAR</span>
+                                <strong>0.29</strong>
+                            </div>
+
+                            <div class="alert-info-box">
+                                <span>MAR</span>
+                                <strong>0.55</strong>
+                            </div>
+
+                            <div class="alert-info-box">
+                                <span>Số lần</span>
+                                <strong>1</strong>
+                            </div>
+
+                            <div class="alert-info-box">
+                                <span>Độ nguy hiểm</span>
+                                <strong>48%</strong>
+                            </div>
+
+                        </div>
+
+                        <div class="alert-actions-buttons">
+
+                            <button class="btn-alert btn-view">
+                                Xem
+                            </button>
+
+                            <button class="btn-alert btn-process">
+                                Đánh dấu
+                            </button>
+
+                            <button class="btn-alert btn-danger">
+                                Gửi
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="card alert-table-card">
+
+                <table class="table">
+
+                    <thead>
+                        <tr>
+                            <th>Thời gian</th>
+                            <th>Tài xế</th>
+                            <th>Loại cảnh báo</th>
+                            <th>EAR</th>
+                            <th>MAR</th>
+                            <th>Mức độ</th>
+                            <th>Trạng thái</th>
+                            <th>Hành động</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+
+                        <tr>
+                            <td>18:21 - 18/05</td>
+                            <td>Nguyễn Văn A</td>
+                            <td>Ngủ gật liên tục</td>
+                            <td>0.18</td>
+                            <td>0.62</td>
+                            <td>
+                                <span class="badge badge-danger">
+                                    Nguy hiểm
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge badge-warning">
+                                    Chưa xử lý
+                                </span>
+                            </td>
+                            <td>
+                                <button class="btn-alert btn-view">
+                                    Xem
+                                </button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>16:11 - 18/05</td>
+                            <td>Trần Văn B</td>
+                            <td>Ngáp liên tục</td>
+                            <td>0.29</td>
+                            <td>0.55</td>
+                            <td>
+                                <span class="badge badge-warning">
+                                    Cảnh báo
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge badge-success">
+                                    Đã xử lý
+                                </span>
+                            </td>
+                            <td>
+                                <button class="btn-alert btn-view">
+                                    Xem
+                                </button>
+                            </td>
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+    </main>
+
+</div>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/logout.css') }}">
+<script src="{{ url_for('static', filename='js/logout.js') }}"></script>
+
+<div class="logout-modal" id="logoutModal">
+
+    <div class="logout-box">
+
+        <div class="logout-icon">
+            ⎋
+        </div>
+
+        <h2>Đăng xuất?</h2>
+
+        <p>
+            Bạn có chắc muốn đăng xuất khỏi hệ thống DriverGuard AI?
+        </p>
+
+        <div class="logout-actions">
+
+            <button
+                class="btn-logout-cancel"
+                onclick="closeLogoutModal()"
+            >
+                Hủy
+            </button>
+
+            <a
+                href="/login"
+                class="btn-logout"
+            >
+                Đăng xuất
+            </a>
+
+        </div>
+
+    </div>
+
+</div>
+</body>
+</html>

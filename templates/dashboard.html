@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard - DriverGuard AI</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+</head>
+<body>
+
+<div class="app">
+
+    <aside class="sidebar">
+        <div class="logo">
+            <div class="logo-icon">🛡</div>
+            <div>
+                <h2>DriverGuard</h2>
+                <span>AI SAFETY</span>
+            </div>
+        </div>
+
+        <nav class="menu">
+            <a href="/dashboard" class="active">📊 Dashboard</a>
+            <a href="/drivers">👥 Tài xế</a>
+            <a href="/vehicles">🚘 Quản lý xe</a>
+            <a href="/shifts">⏱ Ca làm việc</a>
+            <a href="/camera">📷 Camera AI</a>
+            <a href="/alerts">⚠️ Lịch sử cảnh báo</a>
+            <a href="/stats">📈 Thống kê</a>
+            <a href="/settings">⚙️ Cài đặt</a>
+            <a href="/login">🚪 Đăng xuất</a>
+        </nav>
+    </aside>
+
+    <main class="main">
+
+        <header class="header">
+            <div>
+                <h1>Tổng quan hệ thống</h1>
+                <p>Theo dõi tình trạng an toàn tài xế bằng AI theo thời gian thực</p>
+            </div>
+
+            <div class="header-right">
+                <input class="search-box" placeholder="Tìm kiếm...">
+                <div class="user-box">
+                    <div class="avatar">A</div>
+                    <div>
+                        <strong>Admin System</strong>
+                        <p>Quản trị viên</p>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <section class="content">
+
+            <div class="metric-grid">
+                <div class="metric-card blue">
+                    <div class="metric-title">Tổng tài xế</div>
+                    <div class="metric-value">24</div>
+                    <div class="metric-sub">4 tài xế đang hoạt động</div>
+                </div>
+
+                <div class="metric-card success">
+                    <div class="metric-title">Tổng số xe</div>
+                    <div class="metric-value">18</div>
+                    <div class="metric-sub">16 xe đang hoạt động</div>
+                </div>
+
+                <div class="metric-card danger">
+                    <div class="metric-title">Cảnh báo hôm nay</div>
+                    <div class="metric-value">9</div>
+                    <div class="metric-sub">+3 so với hôm qua</div>
+                </div>
+            </div>
+
+            <div class="metric-grid">
+                <div class="metric-card warning">
+                    <div class="metric-title">Tài xế nguy cơ cao</div>
+                    <div class="metric-value">2</div>
+                    <div class="metric-sub">Cần kiểm tra ngay</div>
+                </div>
+
+                <div class="metric-card blue">
+                    <div class="metric-title">Ca đang hoạt động</div>
+                    <div class="metric-value">6</div>
+                    <div class="metric-sub">Trong tổng 8 ca</div>
+                </div>
+
+                <div class="metric-card success">
+                    <div class="metric-title">Camera online</div>
+                    <div class="metric-value">12</div>
+                    <div class="metric-sub">2 camera offline</div>
+                </div>
+            </div>
+
+            <div class="dashboard-row">
+                <div class="card">
+                    <div class="card-title">Cảnh báo theo ngày</div>
+                    <div class="chart-box">
+                        <div class="bar" style="height:45%"></div>
+                        <div class="bar" style="height:70%"></div>
+                        <div class="bar" style="height:38%"></div>
+                        <div class="bar" style="height:90%"></div>
+                        <div class="bar" style="height:55%"></div>
+                        <div class="bar" style="height:75%"></div>
+                        <div class="bar" style="height:60%"></div>
+                        <div class="bar" style="height:100%"></div>
+                        <div class="bar" style="height:50%"></div>
+                        <div class="bar" style="height:72%"></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Loại cảnh báo</div>
+
+                    <div class="progress-item">
+                        <div class="progress-top">
+                            <span>Nhắm mắt lâu</span>
+                            <strong>42%</strong>
+                        </div>
+                        <div class="progress-line">
+                            <div class="progress-fill fill-red" style="width:42%"></div>
+                        </div>
+                    </div>
+
+                    <div class="progress-item">
+                        <div class="progress-top">
+                            <span>Ngáp liên tục</span>
+                            <strong>28%</strong>
+                        </div>
+                        <div class="progress-line">
+                            <div class="progress-fill fill-orange" style="width:28%"></div>
+                        </div>
+                    </div>
+
+                    <div class="progress-item">
+                        <div class="progress-top">
+                            <span>Gục đầu</span>
+                            <strong>20%</strong>
+                        </div>
+                        <div class="progress-line">
+                            <div class="progress-fill fill-blue" style="width:20%"></div>
+                        </div>
+                    </div>
+
+                    <div class="progress-item">
+                        <div class="progress-top">
+                            <span>Ngủ gật</span>
+                            <strong>10%</strong>
+                        </div>
+                        <div class="progress-line">
+                            <div class="progress-fill fill-purple" style="width:10%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Cảnh báo mới nhất</div>
+
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Tài xế</th>
+                            <th>Biển số</th>
+                            <th>Loại cảnh báo</th>
+                            <th>Mức độ</th>
+                            <th>Thời gian</th>
+                            <th>Trạng thái</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        <tr>
+                            <td>Trần Văn B</td>
+                            <td>51B-67890</td>
+                            <td>Nhắm mắt lâu</td>
+                            <td><span class="badge badge-danger">Nguy hiểm</span></td>
+                            <td>08:23 - 18/05</td>
+                            <td><span class="badge badge-warning">Chưa xử lý</span></td>
+                        </tr>
+
+                        <tr>
+                            <td>Phạm Minh D</td>
+                            <td>29H-88999</td>
+                            <td>Ngủ gật liên tục</td>
+                            <td><span class="badge badge-danger">Nguy hiểm</span></td>
+                            <td>07:45 - 18/05</td>
+                            <td><span class="badge badge-warning">Chưa xử lý</span></td>
+                        </tr>
+
+                        <tr>
+                            <td>Nguyễn Văn A</td>
+                            <td>51A-12345</td>
+                            <td>Ngáp liên tục</td>
+                            <td><span class="badge badge-warning">Cảnh báo</span></td>
+                            <td>11:12 - 17/05</td>
+                            <td><span class="badge badge-success">Đã xử lý</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+        </section>
+
+    </main>
+
+</div>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/logout.css') }}">
+<script src="{{ url_for('static', filename='js/logout.js') }}"></script>
+
+<div class="logout-modal" id="logoutModal">
+
+    <div class="logout-box">
+
+        <div class="logout-icon">
+            ⎋
+        </div>
+
+        <h2>Đăng xuất?</h2>
+
+        <p>
+            Bạn có chắc muốn đăng xuất khỏi hệ thống DriverGuard AI?
+        </p>
+
+        <div class="logout-actions">
+
+            <button
+                class="btn-logout-cancel"
+                onclick="closeLogoutModal()"
+            >
+                Hủy
+            </button>
+
+            <a
+                href="/login"
+                class="btn-logout"
+            >
+                Đăng xuất
+            </a>
+
+        </div>
+
+    </div>
+
+</div>
+</body>
+</html>

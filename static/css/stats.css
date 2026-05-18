@@ -1,0 +1,267 @@
+.stats-summary{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:18px;
+    margin-bottom:24px;
+}
+
+.stats-card{
+    background:white;
+    border:1px solid #C8E8FF;
+    border-radius:18px;
+    padding:20px;
+    box-shadow:0 4px 16px rgba(0,102,255,.08);
+}
+
+.stats-card h3{
+    font-family:'Rajdhani',sans-serif;
+    font-size:34px;
+    color:#0066FF;
+}
+
+.stats-card p{
+    color:#5A7A9A;
+    font-size:14px;
+}
+
+.stats-card.danger h3{
+    color:#FF3B30;
+}
+
+.stats-card.warning h3{
+    color:#FF9500;
+}
+
+.stats-card.success h3{
+    color:#22C55E;
+}
+
+.stats-actions{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:22px;
+}
+
+.stats-filters{
+    display:flex;
+    gap:12px;
+}
+
+.stats-filters select{
+    width:220px;
+}
+
+.stats-grid{
+    display:grid;
+    grid-template-columns:2fr 1fr;
+    gap:18px;
+    margin-bottom:24px;
+}
+
+.chart-large{
+    height:260px;
+    display:flex;
+    align-items:flex-end;
+    gap:10px;
+    padding-top:20px;
+}
+
+.chart-column{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:8px;
+}
+
+.chart-bar{
+    width:100%;
+    border-radius:8px 8px 0 0;
+    background:linear-gradient(180deg,#00E5FF,#0066FF);
+    box-shadow:0 0 12px rgba(0,229,255,.25);
+}
+
+.chart-label{
+    font-size:12px;
+    color:#5A7A9A;
+}
+
+.donut-wrap{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    padding:20px 0;
+}
+
+.donut{
+    width:190px;
+    height:190px;
+    border-radius:50%;
+    background:conic-gradient(
+        #FF3B30 0 38%,
+        #FF9500 38% 66%,
+        #0066FF 66% 86%,
+        #8B5CF6 86% 100%
+    );
+    position:relative;
+    box-shadow:0 0 25px rgba(0,102,255,.15);
+}
+
+.donut::after{
+    content:"";
+    position:absolute;
+    inset:34px;
+    border-radius:50%;
+    background:white;
+}
+
+.donut-center{
+    position:absolute;
+    z-index:2;
+    text-align:center;
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%);
+}
+
+.donut-center strong{
+    display:block;
+    font-family:'Rajdhani',sans-serif;
+    font-size:34px;
+    color:#0066FF;
+}
+
+.donut-center span{
+    font-size:13px;
+    color:#5A7A9A;
+}
+
+.legend{
+    margin-top:20px;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    width:100%;
+}
+
+.legend-item{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    font-size:14px;
+}
+
+.legend-left{
+    display:flex;
+    align-items:center;
+    gap:8px;
+}
+
+.legend-dot{
+    width:12px;
+    height:12px;
+    border-radius:50%;
+}
+
+.dot-red{background:#FF3B30;}
+.dot-orange{background:#FF9500;}
+.dot-blue{background:#0066FF;}
+.dot-purple{background:#8B5CF6;}
+
+.stats-row{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:18px;
+    margin-bottom:24px;
+}
+
+.ranking-list{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+}
+
+.rank-item{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:12px;
+    background:#F0F8FF;
+    border:1px solid #C8E8FF;
+    border-radius:14px;
+}
+
+.rank-number{
+    width:32px;
+    height:32px;
+    border-radius:50%;
+    background:linear-gradient(135deg,#0066FF,#00E5FF);
+    color:white;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    font-weight:900;
+}
+
+.rank-info{
+    flex:1;
+}
+
+.rank-info strong{
+    display:block;
+}
+
+.rank-info span{
+    color:#5A7A9A;
+    font-size:13px;
+}
+
+.rank-count{
+    font-weight:900;
+    color:#FF3B30;
+}
+
+.heatmap{
+    display:grid;
+    grid-template-columns:repeat(7,1fr);
+    gap:8px;
+}
+
+.heat-cell{
+    height:42px;
+    border-radius:10px;
+    background:#E8F2FA;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:12px;
+    font-weight:800;
+    color:#5A7A9A;
+}
+
+.heat-low{
+    background:#EAF8FF;
+    color:#0066FF;
+}
+
+.heat-mid{
+    background:#FFF8EE;
+    color:#FF9500;
+}
+
+.heat-high{
+    background:#FFF0EF;
+    color:#FF3B30;
+}
+
+.btn-outline{
+    padding:11px 16px;
+    border-radius:12px;
+    border:1.5px solid #0066FF;
+    color:#0066FF;
+    background:white;
+    font-weight:700;
+    cursor:pointer;
+}

@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Thêm tài xế - DriverGuard AI</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/add_driver.css') }}">
+</head>
+<body>
+
+<div class="app">
+
+    <aside class="sidebar">
+        <div class="logo">
+            <div class="logo-icon">🛡</div>
+            <div>
+                <h2>DriverGuard</h2>
+                <span>AI SAFETY</span>
+            </div>
+        </div>
+
+        <nav class="menu">
+            <a href="/dashboard">📊 Dashboard</a>
+            <a href="/drivers" class="active">👥 Tài xế</a>
+            <a href="/vehicles">🚘 Quản lý xe</a>
+            <a href="/shifts">⏱ Ca làm việc</a>
+            <a href="/camera">📷 Camera AI</a>
+            <a href="/alerts">⚠️ Lịch sử cảnh báo</a>
+            <a href="/stats">📈 Thống kê</a>
+            <a href="/settings">⚙️ Cài đặt</a>
+            <a href="/login">🚪 Đăng xuất</a>
+        </nav>
+    </aside>
+
+    <main class="main">
+
+        <header class="header">
+            <div>
+                <h1>Thêm tài xế mới</h1>
+                <p>Nhập thông tin tài xế và ảnh khuôn mặt để AI nhận diện</p>
+            </div>
+
+            <div class="header-right">
+                <input class="search-box" placeholder="Tìm kiếm...">
+                <div class="user-box">
+                    <div class="avatar">A</div>
+                    <div>
+                        <strong>Admin System</strong>
+                        <p>Quản trị viên</p>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <section class="content">
+
+            <div class="add-driver-layout">
+
+                <div class="card upload-card">
+                    <h3>Ảnh nhận diện</h3>
+
+                    <div class="upload-box">
+                        <div class="upload-icon">📷</div>
+                        <strong>Kéo thả hoặc chọn ảnh</strong>
+                        <span>JPG, PNG, JPEG</span>
+                    </div>
+
+                    <button class="btn-main">Chọn ảnh</button>
+
+                    <div class="note-box" style="margin-top:16px;">
+                        <strong>Yêu cầu ảnh:</strong>
+                        <ul>
+                            <li>Khuôn mặt rõ ràng, đủ sáng</li>
+                            <li>Nhìn thẳng vào camera</li>
+                            <li>Không đeo kính râm, khẩu trang</li>
+                            <li>Độ phân giải tối thiểu 300x300px</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card form-card">
+                    <h2>Thông tin tài xế</h2>
+                    <p>Thông tin này dùng để quản lý, gán xe và lưu lịch sử cảnh báo.</p>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Họ và tên</label>
+                            <input type="text" placeholder="Nguyễn Văn A">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Mã tài xế</label>
+                            <input type="text" placeholder="DRV-001">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Số điện thoại</label>
+                            <input type="text" placeholder="0901234567">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="email" placeholder="driver@email.com">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Ngày sinh</label>
+                            <input type="date">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Số giấy phép lái xe</label>
+                            <input type="text" placeholder="GPLX-123456789">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Biển số xe phụ trách</label>
+                            <select>
+                                <option>51A-12345</option>
+                                <option>51B-67890</option>
+                                <option>60C-45678</option>
+                                <option>29H-88999</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Loại xe</label>
+                            <select>
+                                <option>Xe tải</option>
+                                <option>Xe khách</option>
+                                <option>Xe container</option>
+                                <option>Xe dịch vụ</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Ca làm việc</label>
+                            <select>
+                                <option>Ca sáng: 07:00 - 12:00</option>
+                                <option>Ca chiều: 13:00 - 18:00</option>
+                                <option>Ca đêm: 22:00 - 06:00</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Trạng thái</label>
+                            <select>
+                                <option>Đang hoạt động</option>
+                                <option>Tạm nghỉ</option>
+                                <option>Ngừng hoạt động</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Địa chỉ</label>
+                        <input type="text" placeholder="Nhập địa chỉ tài xế">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Ghi chú</label>
+                        <textarea rows="4" placeholder="Ghi chú thêm về tài xế..."></textarea>
+                    </div>
+
+                    <div class="form-actions">
+                        <a href="/drivers" class="btn-cancel">Hủy</a>
+                        <a href="/drivers" class="btn-main btn-save">Lưu tài xế</a>
+                    </div>
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+</div>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/logout.css') }}">
+<script src="{{ url_for('static', filename='js/logout.js') }}"></script>
+
+<div class="logout-modal" id="logoutModal">
+
+    <div class="logout-box">
+
+        <div class="logout-icon">
+            ⎋
+        </div>
+
+        <h2>Đăng xuất?</h2>
+
+        <p>
+            Bạn có chắc muốn đăng xuất khỏi hệ thống DriverGuard AI?
+        </p>
+
+        <div class="logout-actions">
+
+            <button
+                class="btn-logout-cancel"
+                onclick="closeLogoutModal()"
+            >
+                Hủy
+            </button>
+
+            <a
+                href="/login"
+                class="btn-logout"
+            >
+                Đăng xuất
+            </a>
+
+        </div>
+
+    </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Thống kê - DriverGuard AI</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/stats.css') }}">
+</head>
+<body>
+
+<div class="app">
+
+    <aside class="sidebar">
+        <div class="logo">
+            <div class="logo-icon">🛡</div>
+            <div>
+                <h2>DriverGuard</h2>
+                <span>AI SAFETY</span>
+            </div>
+        </div>
+
+        <nav class="menu">
+            <a href="/dashboard">📊 Dashboard</a>
+            <a href="/drivers">👥 Tài xế</a>
+            <a href="/vehicles">🚘 Quản lý xe</a>
+            <a href="/shifts">⏱ Ca làm việc</a>
+            <a href="/camera">📷 Camera AI</a>
+            <a href="/alerts">⚠️ Lịch sử cảnh báo</a>
+            <a href="/stats" class="active">📈 Thống kê</a>
+            <a href="/settings">⚙️ Cài đặt</a>
+            <a href="/login">🚪 Đăng xuất</a>
+        </nav>
+    </aside>
+
+    <main class="main">
+
+        <header class="header">
+            <div>
+                <h1>Thống kê báo cáo</h1>
+                <p>Phân tích dữ liệu cảnh báo, tài xế nguy cơ cao và xu hướng buồn ngủ</p>
+            </div>
+
+            <div class="header-right">
+                <input class="search-box" placeholder="Tìm kiếm...">
+                <div class="user-box">
+                    <div class="avatar">A</div>
+                    <div>
+                        <strong>Admin System</strong>
+                        <p>Quản trị viên</p>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <section class="content">
+
+            <div class="stats-summary">
+
+                <div class="stats-card">
+                    <h3>487</h3>
+                    <p>Tổng cảnh báo tháng này</p>
+                </div>
+
+                <div class="stats-card danger">
+                    <h3>38</h3>
+                    <p>Cảnh báo nguy hiểm</p>
+                </div>
+
+                <div class="stats-card warning">
+                    <h3>12.5%</h3>
+                    <p>Tăng so với tháng trước</p>
+                </div>
+
+                <div class="stats-card success">
+                    <h3>89%</h3>
+                    <p>Tỷ lệ đã xử lý</p>
+                </div>
+
+            </div>
+
+            <div class="stats-actions">
+
+                <div class="stats-filters">
+                    <select>
+                        <option>30 ngày qua</option>
+                        <option>7 ngày qua</option>
+                        <option>Tháng này</option>
+                        <option>Năm nay</option>
+                    </select>
+
+                    <select>
+                        <option>Tất cả tài xế</option>
+                        <option>Nguyễn Văn A</option>
+                        <option>Trần Văn B</option>
+                        <option>Phạm Minh D</option>
+                    </select>
+
+                    <select>
+                        <option>Tất cả loại cảnh báo</option>
+                        <option>Nhắm mắt lâu</option>
+                        <option>Ngáp liên tục</option>
+                        <option>Gục đầu</option>
+                        <option>Ngủ gật</option>
+                    </select>
+                </div>
+
+                <button class="btn-outline">
+                    Xuất báo cáo PDF
+                </button>
+
+            </div>
+
+            <div class="stats-grid">
+
+                <div class="card">
+                    <div class="card-title">Biểu đồ cảnh báo theo ngày</div>
+
+                    <div class="chart-large">
+                        <div class="chart-column">
+                            <div class="chart-bar" style="height:45%"></div>
+                            <div class="chart-label">T2</div>
+                        </div>
+
+                        <div class="chart-column">
+                            <div class="chart-bar" style="height:70%"></div>
+                            <div class="chart-label">T3</div>
+                        </div>
+
+                        <div class="chart-column">
+                            <div class="chart-bar" style="height:55%"></div>
+                            <div class="chart-label">T4</div>
+                        </div>
+
+                        <div class="chart-column">
+                            <div class="chart-bar" style="height:90%"></div>
+                            <div class="chart-label">T5</div>
+                        </div>
+
+                        <div class="chart-column">
+                            <div class="chart-bar" style="height:65%"></div>
+                            <div class="chart-label">T6</div>
+                        </div>
+
+                        <div class="chart-column">
+                            <div class="chart-bar" style="height:100%"></div>
+                            <div class="chart-label">T7</div>
+                        </div>
+
+                        <div class="chart-column">
+                            <div class="chart-bar" style="height:50%"></div>
+                            <div class="chart-label">CN</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Tỷ lệ loại cảnh báo</div>
+
+                    <div class="donut-wrap">
+                        <div class="donut">
+                            <div class="donut-center">
+                                <strong>487</strong>
+                                <span>Cảnh báo</span>
+                            </div>
+                        </div>
+
+                        <div class="legend">
+
+                            <div class="legend-item">
+                                <div class="legend-left">
+                                    <div class="legend-dot dot-red"></div>
+                                    <span>Nhắm mắt lâu</span>
+                                </div>
+                                <strong>38%</strong>
+                            </div>
+
+                            <div class="legend-item">
+                                <div class="legend-left">
+                                    <div class="legend-dot dot-orange"></div>
+                                    <span>Ngáp liên tục</span>
+                                </div>
+                                <strong>28%</strong>
+                            </div>
+
+                            <div class="legend-item">
+                                <div class="legend-left">
+                                    <div class="legend-dot dot-blue"></div>
+                                    <span>Gục đầu</span>
+                                </div>
+                                <strong>20%</strong>
+                            </div>
+
+                            <div class="legend-item">
+                                <div class="legend-left">
+                                    <div class="legend-dot dot-purple"></div>
+                                    <span>Ngủ gật</span>
+                                </div>
+                                <strong>14%</strong>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="stats-row">
+
+                <div class="card">
+                    <div class="card-title">Top tài xế có nhiều cảnh báo</div>
+
+                    <div class="ranking-list">
+
+                        <div class="rank-item">
+                            <div class="rank-number">1</div>
+                            <div class="rank-info">
+                                <strong>Phạm Minh D</strong>
+                                <span>Xe 29H-88999 • Ca sáng</span>
+                            </div>
+                            <div class="rank-count">42 lần</div>
+                        </div>
+
+                        <div class="rank-item">
+                            <div class="rank-number">2</div>
+                            <div class="rank-info">
+                                <strong>Trần Văn B</strong>
+                                <span>Xe 51B-67890 • Ca chiều</span>
+                            </div>
+                            <div class="rank-count">31 lần</div>
+                        </div>
+
+                        <div class="rank-item">
+                            <div class="rank-number">3</div>
+                            <div class="rank-info">
+                                <strong>Lê Hoàng C</strong>
+                                <span>Xe 60C-45678 • Ca đêm</span>
+                            </div>
+                            <div class="rank-count">18 lần</div>
+                        </div>
+
+                        <div class="rank-item">
+                            <div class="rank-number">4</div>
+                            <div class="rank-info">
+                                <strong>Nguyễn Văn A</strong>
+                                <span>Xe 51A-12345 • Ca sáng</span>
+                            </div>
+                            <div class="rank-count">12 lần</div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Heatmap cảnh báo theo tuần</div>
+
+                    <div class="heatmap">
+                        <div class="heat-cell">T2</div>
+                        <div class="heat-cell">T3</div>
+                        <div class="heat-cell">T4</div>
+                        <div class="heat-cell">T5</div>
+                        <div class="heat-cell">T6</div>
+                        <div class="heat-cell">T7</div>
+                        <div class="heat-cell">CN</div>
+
+                        <div class="heat-cell heat-low">3</div>
+                        <div class="heat-cell heat-mid">8</div>
+                        <div class="heat-cell heat-low">4</div>
+                        <div class="heat-cell heat-high">15</div>
+                        <div class="heat-cell heat-mid">9</div>
+                        <div class="heat-cell heat-high">18</div>
+                        <div class="heat-cell heat-low">5</div>
+
+                        <div class="heat-cell heat-mid">7</div>
+                        <div class="heat-cell heat-high">13</div>
+                        <div class="heat-cell heat-mid">10</div>
+                        <div class="heat-cell heat-high">21</div>
+                        <div class="heat-cell heat-mid">11</div>
+                        <div class="heat-cell heat-high">25</div>
+                        <div class="heat-cell heat-mid">8</div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="card">
+
+                <div class="card-title">Bảng thống kê theo ca làm việc</div>
+
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Ca làm việc</th>
+                            <th>Số tài xế</th>
+                            <th>Tổng cảnh báo</th>
+                            <th>Nguy hiểm</th>
+                            <th>Tỷ lệ xử lý</th>
+                            <th>Đánh giá</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        <tr>
+                            <td>Ca sáng</td>
+                            <td>8</td>
+                            <td>142</td>
+                            <td>12</td>
+                            <td>91%</td>
+                            <td><span class="badge badge-success">Ổn định</span></td>
+                        </tr>
+
+                        <tr>
+                            <td>Ca chiều</td>
+                            <td>7</td>
+                            <td>176</td>
+                            <td>18</td>
+                            <td>86%</td>
+                            <td><span class="badge badge-warning">Cần theo dõi</span></td>
+                        </tr>
+
+                        <tr>
+                            <td>Ca đêm</td>
+                            <td>5</td>
+                            <td>169</td>
+                            <td>26</td>
+                            <td>79%</td>
+                            <td><span class="badge badge-danger">Nguy cơ cao</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+            </div>
+
+        </section>
+
+    </main>
+
+</div>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/logout.css') }}">
+<script src="{{ url_for('static', filename='js/logout.js') }}"></script>
+
+<div class="logout-modal" id="logoutModal">
+
+    <div class="logout-box">
+
+        <div class="logout-icon">
+            ⎋
+        </div>
+
+        <h2>Đăng xuất?</h2>
+
+        <p>
+            Bạn có chắc muốn đăng xuất khỏi hệ thống DriverGuard AI?
+        </p>
+
+        <div class="logout-actions">
+
+            <button
+                class="btn-logout-cancel"
+                onclick="closeLogoutModal()"
+            >
+                Hủy
+            </button>
+
+            <a
+                href="/login"
+                class="btn-logout"
+            >
+                Đăng xuất
+            </a>
+
+        </div>
+
+    </div>
+
+</div>
+</body>
+</html>

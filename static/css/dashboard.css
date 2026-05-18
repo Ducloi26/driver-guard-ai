@@ -1,0 +1,156 @@
+.metric-grid{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:18px;
+    margin-bottom:24px;
+}
+
+.metric-card{
+    background:white;
+    border:1px solid #C8E8FF;
+    border-radius:18px;
+    padding:22px;
+    box-shadow:0 4px 16px rgba(0,102,255,.08);
+    transition:.2s;
+}
+
+.metric-card:hover{
+    transform:translateY(-3px);
+    box-shadow:0 10px 28px rgba(0,102,255,.14);
+}
+
+.metric-card.danger{
+    border-top:4px solid #FF3B30;
+}
+
+.metric-card.warning{
+    border-top:4px solid #FF9500;
+}
+
+.metric-card.success{
+    border-top:4px solid #22C55E;
+}
+
+.metric-card.blue{
+    border-top:4px solid #0066FF;
+}
+
+.metric-title{
+    color:#5A7A9A;
+    font-size:14px;
+    margin-bottom:8px;
+}
+
+.metric-value{
+    font-family:'Rajdhani',sans-serif;
+    font-size:38px;
+    font-weight:700;
+}
+
+.metric-sub{
+    color:#5A7A9A;
+    font-size:13px;
+    margin-top:6px;
+}
+
+.dashboard-row{
+    display:grid;
+    grid-template-columns:2fr 1fr;
+    gap:18px;
+    margin-bottom:24px;
+}
+
+.card{
+    background:white;
+    border:1px solid #C8E8FF;
+    border-radius:18px;
+    padding:22px;
+    box-shadow:0 4px 16px rgba(0,102,255,.08);
+}
+
+.card-title{
+    font-weight:700;
+    margin-bottom:16px;
+}
+
+.chart-box{
+    height:180px;
+    display:flex;
+    align-items:flex-end;
+    gap:8px;
+}
+
+.bar{
+    flex:1;
+    border-radius:6px 6px 0 0;
+    background:linear-gradient(180deg,#00E5FF,#0066FF);
+}
+
+.progress-item{
+    margin-bottom:16px;
+}
+
+.progress-top{
+    display:flex;
+    justify-content:space-between;
+    font-size:14px;
+    margin-bottom:6px;
+}
+
+.progress-line{
+    height:8px;
+    border-radius:20px;
+    background:#E8F2FA;
+    overflow:hidden;
+}
+
+.progress-fill{
+    height:100%;
+    border-radius:20px;
+}
+
+.fill-red{background:#FF3B30;}
+.fill-orange{background:#FF9500;}
+.fill-blue{background:#0066FF;}
+.fill-purple{background:#8B5CF6;}
+
+.table{
+    width:100%;
+    border-collapse:collapse;
+}
+
+.table th{
+    text-align:left;
+    padding:12px;
+    font-size:12px;
+    color:#5A7A9A;
+    background:#F0F8FF;
+}
+
+.table td{
+    padding:13px 12px;
+    border-bottom:1px solid #E8F2FA;
+    font-size:14px;
+}
+
+.badge{
+    padding:5px 10px;
+    border-radius:20px;
+    font-size:12px;
+    font-weight:700;
+}
+
+.badge-danger{
+    background:#FFF0EF;
+    color:#FF3B30;
+}
+
+.badge-warning{
+    background:#FFF8EE;
+    color:#FF9500;
+}
+
+.badge-success{
+    background:#EDFDF5;
+    color:#22C55E;
+}

@@ -1,0 +1,98 @@
+.vehicle-summary{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:18px;
+    margin-bottom:24px;
+}
+
+.vehicle-card{
+    background:white;
+    border:1px solid #C8E8FF;
+    border-radius:18px;
+    padding:20px;
+    box-shadow:0 4px 16px rgba(0,102,255,.08);
+}
+
+.vehicle-card h3{
+    font-family:'Rajdhani',sans-serif;
+    font-size:32px;
+    color:#0066FF;
+}
+
+.vehicle-card p{
+    color:#5A7A9A;
+    font-size:14px;
+}
+
+.vehicle-actions{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:22px;
+}
+
+.vehicle-filters{
+    display:flex;
+    gap:12px;
+}
+
+.vehicle-filters input,
+.vehicle-filters select{
+    width:220px;
+}
+
+.vehicle-table-card{
+    padding:0;
+    overflow:hidden;
+}
+
+.vehicle-plate{
+    background:#EEF5FF;
+    color:#0066FF;
+    padding:6px 12px;
+    border-radius:20px;
+    font-weight:800;
+    font-size:13px;
+}
+
+.vehicle-type{
+    font-weight:700;
+}
+
+.vehicle-note{
+    color:#5A7A9A;
+    font-size:12px;
+}
+
+.btn-small{
+    padding:7px 11px;
+    border-radius:9px;
+    border:none;
+    cursor:pointer;
+    font-weight:700;
+}
+
+.btn-view{
+    background:#EEF5FF;
+    color:#0066FF;
+}
+
+.btn-edit{
+    background:#FFF8EE;
+    color:#FF9500;
+}
+
+.btn-delete{
+    background:#FFF0EF;
+    color:#FF3B30;
+}
+
+.btn-outline{
+    padding:11px 16px;
+    border-radius:12px;
+    border:1.5px solid #0066FF;
+    color:#0066FF;
+    background:white;
+    font-weight:700;
+    cursor:pointer;
+}

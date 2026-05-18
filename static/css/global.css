@@ -1,0 +1,71 @@
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=DM+Sans:wght@400;500;600&display=swap');
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
+    font-family:'DM Sans',sans-serif;
+    background:#F0F8FF;
+    color:#0D1B2A;
+}
+
+a{
+    text-decoration:none;
+}
+
+input,
+select,
+textarea{
+    width:100%;
+    padding:12px 14px;
+
+    border:1.5px solid #C8E8FF;
+
+    border-radius:12px;
+
+    outline:none;
+
+    font-size:14px;
+
+    background:white;
+}
+
+input:focus,
+select:focus,
+textarea:focus{
+    border-color:#00E5FF;
+    box-shadow:0 0 0 3px rgba(0,229,255,0.16);
+}
+
+.btn-main{
+    display:block;
+
+    width:100%;
+
+    padding:14px;
+
+    border-radius:12px;
+
+    text-align:center;
+
+    color:white;
+
+    font-weight:700;
+
+    background:linear-gradient(
+        135deg,
+        #0066FF,
+        #00E5FF
+    );
+
+    box-shadow:0 8px 22px rgba(0,229,255,0.35);
+
+    transition:0.25s;
+}
+
+.btn-main:hover{
+    transform:translateY(-2px);
+}

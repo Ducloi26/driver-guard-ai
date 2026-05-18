@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Ca làm việc - DriverGuard AI</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/shifts.css') }}">
+</head>
+<body>
+
+<div class="app">
+
+    <aside class="sidebar">
+        <div class="logo">
+            <div class="logo-icon">🛡</div>
+            <div>
+                <h2>DriverGuard</h2>
+                <span>AI SAFETY</span>
+            </div>
+        </div>
+
+        <nav class="menu">
+            <a href="/dashboard">📊 Dashboard</a>
+            <a href="/drivers">👥 Tài xế</a>
+            <a href="/vehicles">🚘 Quản lý xe</a>
+            <a href="/shifts" class="active">⏱ Ca làm việc</a>
+            <a href="/camera">📷 Camera AI</a>
+            <a href="/alerts">⚠️ Lịch sử cảnh báo</a>
+            <a href="/stats">📈 Thống kê</a>
+            <a href="/settings">⚙️ Cài đặt</a>
+            <a href="/login">🚪 Đăng xuất</a>
+        </nav>
+    </aside>
+
+    <main class="main">
+
+        <header class="header">
+            <div>
+                <h1>Ca làm việc</h1>
+                <p>Quản lý lịch làm việc, gán tài xế với xe và theo dõi ca đang hoạt động</p>
+            </div>
+
+            <div class="header-right">
+                <input class="search-box" placeholder="Tìm kiếm...">
+                <div class="user-box">
+                    <div class="avatar">A</div>
+                    <div>
+                        <strong>Admin System</strong>
+                        <p>Quản trị viên</p>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <section class="content">
+
+            <div class="shift-summary">
+                <div class="shift-card">
+                    <h3>8</h3>
+                    <p>Tổng số ca</p>
+                </div>
+
+                <div class="shift-card">
+                    <h3>6</h3>
+                    <p>Ca đang hoạt động</p>
+                </div>
+
+                <div class="shift-card">
+                    <h3>2</h3>
+                    <p>Ca sắp bắt đầu</p>
+                </div>
+
+                <div class="shift-card">
+                    <h3>1</h3>
+                    <p>Ca có cảnh báo</p>
+                </div>
+            </div>
+
+            <div class="shift-actions">
+                <div class="shift-filters">
+                    <input type="text" placeholder="Tìm tài xế hoặc biển số...">
+
+                    <select>
+                        <option>Tất cả ca</option>
+                        <option>Ca sáng</option>
+                        <option>Ca chiều</option>
+                        <option>Ca đêm</option>
+                    </select>
+
+                    <select>
+                        <option>Tất cả trạng thái</option>
+                        <option>Đang hoạt động</option>
+                        <option>Sắp bắt đầu</option>
+                        <option>Đã kết thúc</option>
+                    </select>
+                </div>
+
+                <div>
+                    <button class="btn-outline">+ Tạo ca làm việc</button>
+                </div>
+            </div>
+
+            <div class="shift-grid">
+
+                <div class="shift-box">
+                    <div class="shift-top">
+                        <div>
+                            <div class="shift-title">Ca sáng</div>
+                            <div class="shift-time">07:00 - 12:00</div>
+                        </div>
+                        <span class="badge badge-success">Đang chạy</span>
+                    </div>
+
+                    <div class="shift-info">
+                        <div class="shift-info-row">
+                            <span>Tuyến đường</span>
+                            <strong>Nội thành TP.HCM</strong>
+                        </div>
+
+                        <div class="shift-info-row">
+                            <span>Số xe</span>
+                            <strong>51A-12345</strong>
+                        </div>
+
+                        <div class="shift-info-row">
+                            <span>Cảnh báo</span>
+                            <strong>2 lần</strong>
+                        </div>
+                    </div>
+
+                    <div class="shift-driver">
+                        <div class="shift-avatar">NA</div>
+                        <div>
+                            <div class="shift-driver-name">Nguyễn Văn A</div>
+                            <div class="shift-driver-car">Xe tải - 51A-12345</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="shift-box warning">
+                    <div class="shift-top">
+                        <div>
+                            <div class="shift-title">Ca chiều</div>
+                            <div class="shift-time">13:00 - 18:00</div>
+                        </div>
+                        <span class="badge badge-warning">Cảnh báo</span>
+                    </div>
+
+                    <div class="shift-info">
+                        <div class="shift-info-row">
+                            <span>Tuyến đường</span>
+                            <strong>Quận 1 - Bình Dương</strong>
+                        </div>
+
+                        <div class="shift-info-row">
+                            <span>Số xe</span>
+                            <strong>51B-67890</strong>
+                        </div>
+
+                        <div class="shift-info-row">
+                            <span>Cảnh báo</span>
+                            <strong>7 lần</strong>
+                        </div>
+                    </div>
+
+                    <div class="shift-driver">
+                        <div class="shift-avatar">TB</div>
+                        <div>
+                            <div class="shift-driver-name">Trần Văn B</div>
+                            <div class="shift-driver-car">Xe khách - 51B-67890</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="shift-box danger">
+                    <div class="shift-top">
+                        <div>
+                            <div class="shift-title">Ca đêm</div>
+                            <div class="shift-time">22:00 - 06:00</div>
+                        </div>
+                        <span class="badge badge-danger">Nguy hiểm</span>
+                    </div>
+
+                    <div class="shift-info">
+                        <div class="shift-info-row">
+                            <span>Tuyến đường</span>
+                            <strong>TP.HCM - Đồng Nai</strong>
+                        </div>
+
+                        <div class="shift-info-row">
+                            <span>Số xe</span>
+                            <strong>60C-45678</strong>
+                        </div>
+
+                        <div class="shift-info-row">
+                            <span>Cảnh báo</span>
+                            <strong>4 lần</strong>
+                        </div>
+                    </div>
+
+                    <div class="shift-driver">
+                        <div class="shift-avatar">LC</div>
+                        <div>
+                            <div class="shift-driver-name">Lê Hoàng C</div>
+                            <div class="shift-driver-car">Container - 60C-45678</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="card shift-table-card">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Tên ca</th>
+                            <th>Thời gian</th>
+                            <th>Tuyến đường</th>
+                            <th>Tài xế</th>
+                            <th>Xe phụ trách</th>
+                            <th>Trạng thái</th>
+                            <th>Cảnh báo</th>
+                            <th>Hành động</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        <tr>
+                            <td>Ca sáng</td>
+                            <td>07:00 - 12:00</td>
+                            <td>Nội thành TP.HCM</td>
+                            <td>Nguyễn Văn A</td>
+                            <td>51A-12345</td>
+                            <td><span class="badge badge-success">Đang hoạt động</span></td>
+                            <td><span class="badge badge-warning">2 lần</span></td>
+                            <td>
+                                <button class="btn-small btn-view">Xem</button>
+                                <button class="btn-small btn-edit">Sửa</button>
+                                <button class="btn-small btn-delete">Xóa</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>Ca chiều</td>
+                            <td>13:00 - 18:00</td>
+                            <td>Quận 1 - Bình Dương</td>
+                            <td>Trần Văn B</td>
+                            <td>51B-67890</td>
+                            <td><span class="badge badge-warning">Cảnh báo</span></td>
+                            <td><span class="badge badge-danger">7 lần</span></td>
+                            <td>
+                                <button class="btn-small btn-view">Xem</button>
+                                <button class="btn-small btn-edit">Sửa</button>
+                                <button class="btn-small btn-delete">Xóa</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>Ca đêm</td>
+                            <td>22:00 - 06:00</td>
+                            <td>TP.HCM - Đồng Nai</td>
+                            <td>Lê Hoàng C</td>
+                            <td>60C-45678</td>
+                            <td><span class="badge badge-danger">Nguy hiểm</span></td>
+                            <td><span class="badge badge-danger">4 lần</span></td>
+                            <td>
+                                <button class="btn-small btn-view">Xem</button>
+                                <button class="btn-small btn-edit">Sửa</button>
+                                <button class="btn-small btn-delete">Xóa</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>Ca sáng</td>
+                            <td>07:00 - 12:00</td>
+                            <td>Sân bay - Trung tâm</td>
+                            <td>Phạm Minh D</td>
+                            <td>29H-88999</td>
+                            <td><span class="badge badge-success">Đang hoạt động</span></td>
+                            <td><span class="badge badge-warning">1 lần</span></td>
+                            <td>
+                                <button class="btn-small btn-view">Xem</button>
+                                <button class="btn-small btn-edit">Sửa</button>
+                                <button class="btn-small btn-delete">Xóa</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+        </section>
+
+    </main>
+
+</div>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/logout.css') }}">
+<script src="{{ url_for('static', filename='js/logout.js') }}"></script>
+
+<div class="logout-modal" id="logoutModal">
+
+    <div class="logout-box">
+
+        <div class="logout-icon">
+            ⎋
+        </div>
+
+        <h2>Đăng xuất?</h2>
+
+        <p>
+            Bạn có chắc muốn đăng xuất khỏi hệ thống DriverGuard AI?
+        </p>
+
+        <div class="logout-actions">
+
+            <button
+                class="btn-logout-cancel"
+                onclick="closeLogoutModal()"
+            >
+                Hủy
+            </button>
+
+            <a
+                href="/login"
+                class="btn-logout"
+            >
+                Đăng xuất
+            </a>
+
+        </div>
+
+    </div>
+
+</div>
+</body>
+</html>

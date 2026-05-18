@@ -1,0 +1,186 @@
+.shift-summary{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:18px;
+    margin-bottom:24px;
+}
+
+.shift-card{
+    background:white;
+    border:1px solid #C8E8FF;
+    border-radius:18px;
+    padding:20px;
+    box-shadow:0 4px 16px rgba(0,102,255,.08);
+}
+
+.shift-card h3{
+    font-family:'Rajdhani',sans-serif;
+    font-size:32px;
+    color:#0066FF;
+}
+
+.shift-card p{
+    color:#5A7A9A;
+    font-size:14px;
+}
+
+.shift-actions{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:22px;
+}
+
+.shift-filters{
+    display:flex;
+    gap:12px;
+}
+
+.shift-filters input,
+.shift-filters select{
+    width:220px;
+}
+
+.shift-grid{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:18px;
+    margin-bottom:24px;
+}
+
+.shift-box{
+    background:white;
+    border:1px solid #C8E8FF;
+    border-radius:18px;
+    padding:22px;
+    box-shadow:0 4px 16px rgba(0,102,255,.08);
+    position:relative;
+    overflow:hidden;
+}
+
+.shift-box::before{
+    content:"";
+    position:absolute;
+    left:0;
+    top:0;
+    width:5px;
+    height:100%;
+    background:linear-gradient(180deg,#0066FF,#00E5FF);
+}
+
+.shift-box.warning::before{
+    background:linear-gradient(180deg,#FF9500,#FFB020);
+}
+
+.shift-box.danger::before{
+    background:linear-gradient(180deg,#FF3B30,#FF6B60);
+}
+
+.shift-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    margin-bottom:18px;
+}
+
+.shift-title{
+    font-family:'Rajdhani',sans-serif;
+    font-size:24px;
+    font-weight:800;
+}
+
+.shift-time{
+    color:#5A7A9A;
+    font-size:14px;
+    margin-top:4px;
+}
+
+.shift-info{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    margin-bottom:18px;
+}
+
+.shift-info-row{
+    display:flex;
+    justify-content:space-between;
+    font-size:14px;
+}
+
+.shift-info-row span{
+    color:#5A7A9A;
+}
+
+.shift-info-row strong{
+    color:#0D1B2A;
+}
+
+.shift-driver{
+    background:#F0F8FF;
+    border:1px solid #C8E8FF;
+    border-radius:14px;
+    padding:12px;
+    display:flex;
+    align-items:center;
+    gap:12px;
+}
+
+.shift-avatar{
+    width:40px;
+    height:40px;
+    border-radius:50%;
+    background:linear-gradient(135deg,#0066FF,#00E5FF);
+    color:white;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    font-weight:800;
+}
+
+.shift-driver-name{
+    font-weight:800;
+}
+
+.shift-driver-car{
+    color:#5A7A9A;
+    font-size:12px;
+}
+
+.shift-table-card{
+    padding:0;
+    overflow:hidden;
+}
+
+.btn-outline{
+    padding:11px 16px;
+    border-radius:12px;
+    border:1.5px solid #0066FF;
+    color:#0066FF;
+    background:white;
+    font-weight:700;
+    cursor:pointer;
+}
+
+.btn-small{
+    padding:7px 11px;
+    border-radius:9px;
+    border:none;
+    cursor:pointer;
+    font-weight:700;
+}
+
+.btn-view{
+    background:#EEF5FF;
+    color:#0066FF;
+}
+
+.btn-edit{
+    background:#FFF8EE;
+    color:#FF9500;
+}
+
+.btn-delete{
+    background:#FFF0EF;
+    color:#FF3B30;
+}

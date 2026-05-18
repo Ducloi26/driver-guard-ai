@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Camera AI - DriverGuard AI</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/camera.css') }}">
+</head>
+<body>
+
+<div class="app">
+
+    <aside class="sidebar">
+        <div class="logo">
+            <div class="logo-icon">🛡</div>
+            <div>
+                <h2>DriverGuard</h2>
+                <span>AI SAFETY</span>
+            </div>
+        </div>
+
+        <nav class="menu">
+            <a href="/dashboard">📊 Dashboard</a>
+            <a href="/drivers">👥 Tài xế</a>
+            <a href="/vehicles">🚘 Quản lý xe</a>
+            <a href="/shifts">⏱ Ca làm việc</a>
+            <a href="/camera" class="active">📷 Camera AI</a>
+            <a href="/alerts">⚠️ Lịch sử cảnh báo</a>
+            <a href="/stats">📈 Thống kê</a>
+            <a href="/settings">⚙️ Cài đặt</a>
+            <a href="/login">🚪 Đăng xuất</a>
+        </nav>
+    </aside>
+
+    <main class="main">
+
+        <header class="header">
+            <div>
+                <h1>Camera AI realtime</h1>
+                <p>Nhận diện tài xế và phát hiện buồn ngủ theo thời gian thực</p>
+            </div>
+
+            <div class="header-right">
+                <input class="search-box" placeholder="Tìm kiếm...">
+                <div class="user-box">
+                    <div class="avatar">A</div>
+                    <div>
+                        <strong>Admin System</strong>
+                        <p>Quản trị viên</p>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <section class="content">
+
+            <div class="camera-layout">
+
+                <div>
+                    <div class="camera-box danger">
+                        <div class="scan-line"></div>
+
+                        <div class="camera-top">
+                            <div class="live-tag">● LIVE CAMERA</div>
+                            <div class="cam-code">CAM-01 | FPS: 28</div>
+                        </div>
+
+                        <div class="camera-face">👤</div>
+
+                        <div class="camera-overlay">
+                            <div class="ai-chip">Tài xế: Nguyễn Văn A</div>
+                            <div class="ai-chip">EAR: 0.18</div>
+                            <div class="ai-chip">MAR: 0.62</div>
+                            <div class="ai-chip danger">CẢNH BÁO NGỦ GẬT</div>
+                        </div>
+                    </div>
+
+                    <div class="camera-actions">
+                        <a href="#" class="btn-main">Bắt đầu camera</a>
+                        <button class="btn-outline">Dừng camera</button>
+                        <button class="btn-outline">Chụp ảnh minh chứng</button>
+                        <button class="btn-outline">Gửi cảnh báo thủ công</button>
+                    </div>
+
+                    <div class="alert-popup">
+                        <h3>⚠️ CẢNH BÁO NGUY HIỂM</h3>
+                        <p>
+                            Tài xế Nguyễn Văn A có dấu hiệu ngủ gật liên tục 3 lần trong 5 phút.
+                            Hệ thống đề xuất gửi thông báo ngay đến quản lý doanh nghiệp.
+                        </p>
+
+                        <div class="alert-buttons">
+                            <button class="btn-danger-main">Gửi thông báo quản lý</button>
+                            <button class="btn-gray">Đánh dấu đã xử lý</button>
+                            <button class="btn-gray">Xem chi tiết</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="side-panel">
+
+                    <div class="card driver-panel">
+                        <div class="driver-photo">NA</div>
+                        <h3>Nguyễn Văn A</h3>
+                        <p>Đã xác thực khuôn mặt - độ chính xác 92%</p>
+
+                        <div class="info-list">
+                            <div class="info-row">
+                                <span>Xe phụ trách</span>
+                                <strong>51A-12345</strong>
+                            </div>
+
+                            <div class="info-row">
+                                <span>Ca làm việc</span>
+                                <strong>07:00 - 12:00</strong>
+                            </div>
+
+                            <div class="info-row">
+                                <span>Số điện thoại</span>
+                                <strong>0901234567</strong>
+                            </div>
+
+                            <div class="info-row">
+                                <span>Trạng thái</span>
+                                <span class="badge badge-danger">Nguy hiểm</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-title">Trạng thái AI</div>
+
+                        <div class="ai-status-grid">
+                            <div class="status-box status-danger">
+                                <span>Mắt</span>
+                                <strong>Nhắm</strong>
+                            </div>
+
+                            <div class="status-box status-warning">
+                                <span>Miệng</span>
+                                <strong>Ngáp</strong>
+                            </div>
+
+                            <div class="status-box status-warning">
+                                <span>Đầu</span>
+                                <strong>Cúi</strong>
+                            </div>
+
+                            <div class="status-box status-danger">
+                                <span>Mức độ</span>
+                                <strong>Cao</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-title">Log realtime</div>
+
+                        <div class="log-list">
+                            <div class="log-item">
+                                <strong>Phát hiện nhắm mắt lâu</strong>
+                                <div class="log-time">18:20:11 - EAR dưới ngưỡng</div>
+                            </div>
+
+                            <div class="log-item">
+                                <strong>Phát hiện ngáp</strong>
+                                <div class="log-time">18:20:34 - MAR vượt ngưỡng</div>
+                            </div>
+
+                            <div class="log-item">
+                                <strong>Cảnh báo lần 3</strong>
+                                <div class="log-time">18:21:02 - Chuẩn bị gửi quản lý</div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+</div>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/logout.css') }}">
+<script src="{{ url_for('static', filename='js/logout.js') }}"></script>
+
+<div class="logout-modal" id="logoutModal">
+
+    <div class="logout-box">
+
+        <div class="logout-icon">
+            ⎋
+        </div>
+
+        <h2>Đăng xuất?</h2>
+
+        <p>
+            Bạn có chắc muốn đăng xuất khỏi hệ thống DriverGuard AI?
+        </p>
+
+        <div class="logout-actions">
+
+            <button
+                class="btn-logout-cancel"
+                onclick="closeLogoutModal()"
+            >
+                Hủy
+            </button>
+
+            <a
+                href="/login"
+                class="btn-logout"
+            >
+                Đăng xuất
+            </a>
+
+        </div>
+
+    </div>
+
+</div>
+</body>
+</html>

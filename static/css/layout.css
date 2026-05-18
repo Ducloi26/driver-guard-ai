@@ -1,0 +1,122 @@
+.app{
+    display:flex;
+    min-height:100vh;
+}
+
+.sidebar{
+    width:240px;
+    background:linear-gradient(180deg,#002447,#003B73,#005BAA);
+    color:white;
+    padding:20px 14px;
+}
+
+.logo{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    margin-bottom:28px;
+}
+
+.logo-icon{
+    width:42px;
+    height:42px;
+    border-radius:12px;
+    background:linear-gradient(135deg,#0066FF,#00E5FF);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    box-shadow:0 0 18px rgba(0,229,255,.5);
+}
+
+.logo h2{
+    font-family:'Rajdhani',sans-serif;
+    font-size:20px;
+}
+
+.logo span{
+    color:#00E5FF;
+    font-size:11px;
+    letter-spacing:1.5px;
+}
+
+.menu{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+}
+
+.menu a{
+    color:rgba(255,255,255,.75);
+    padding:12px 14px;
+    border-radius:12px;
+    font-size:14px;
+    transition:.2s;
+}
+
+.menu a:hover,
+.menu a.active{
+    background:rgba(0,229,255,.18);
+    color:white;
+    box-shadow:inset 3px 0 0 #00E5FF;
+}
+
+.main{
+    flex:1;
+    background:#F0F8FF;
+}
+
+.header{
+    height:68px;
+    background:white;
+    border-bottom:1px solid #C8E8FF;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0 26px;
+}
+
+.header h1{
+    font-family:'Rajdhani',sans-serif;
+    font-size:24px;
+}
+
+.header p{
+    color:#5A7A9A;
+    font-size:13px;
+}
+
+.header-right{
+    display:flex;
+    align-items:center;
+    gap:14px;
+}
+
+.search-box{
+    width:240px;
+    padding:11px 14px;
+    border-radius:12px;
+    border:1.5px solid #C8E8FF;
+    background:#F0F8FF;
+}
+
+.user-box{
+    display:flex;
+    align-items:center;
+    gap:10px;
+}
+
+.avatar{
+    width:38px;
+    height:38px;
+    border-radius:50%;
+    background:linear-gradient(135deg,#0066FF,#00E5FF);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:white;
+    font-weight:bold;
+}
+
+.content{
+    padding:26px;
+}

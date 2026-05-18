@@ -1,0 +1,7 @@
+flask
+opencv-python
+mediapipe
+numpy
+pandas
+pillow
+requests

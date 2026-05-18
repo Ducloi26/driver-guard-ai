@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Đăng ký - DriverGuard AI</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/register.css') }}">
+</head>
+<body>
+
+<div class="auth-page">
+
+    <div class="auth-left">
+        <div class="auth-brand">
+            <div class="logo-box">🛡</div>
+            <h1>DriverGuard AI</h1>
+            <p>Nền tảng quản lý an toàn hàng đầu</p>
+
+            <div class="feature-list">
+                <div>✓ Nhận diện khuôn mặt tài xế bằng AI</div>
+                <div>✓ Cảnh báo buồn ngủ thời gian thực</div>
+                <div>✓ Thông báo tức thì qua Telegram/Email</div>
+                <div>✓ Báo cáo thống kê chi tiết</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="auth-right register-right">
+        <div class="auth-form register-form">
+            <h2>Tạo tài khoản doanh nghiệp</h2>
+            <p>Bắt đầu dùng thử miễn phí 30 ngày</p>
+
+            <div class="form-row">
+                <div>
+                    <label>Họ và tên</label>
+                    <input type="text" placeholder="Nguyễn Văn A">
+                </div>
+                <div>
+                    <label>Số điện thoại</label>
+                    <input type="text" placeholder="0901234567">
+                </div>
+            </div>
+
+            <label>Email</label>
+            <input type="email" placeholder="email@congty.vn">
+
+            <label>Tên doanh nghiệp</label>
+            <input type="text" placeholder="Công ty Vận tải ABC">
+
+            <label>Vai trò</label>
+            <select>
+                <option>Admin doanh nghiệp</option>
+                <option>Quản lý đội xe</option>
+                <option>Nhân viên giám sát</option>
+            </select>
+
+            <div class="form-row">
+                <div>
+                    <label>Mật khẩu</label>
+                    <input type="password" placeholder="••••••••">
+                </div>
+                <div>
+                    <label>Nhập lại</label>
+                    <input type="password" placeholder="••••••••">
+                </div>
+            </div>
+
+            <label class="remember terms">
+                <input type="checkbox">
+                Tôi đồng ý với điều khoản dịch vụ và chính sách bảo mật
+            </label>
+
+            <a href="/dashboard" class="btn-main">Đăng ký ngay</a>
+
+            <div class="auth-link">
+                Đã có tài khoản?
+                <a href="/login">Đăng nhập</a>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+</body>
+</html>

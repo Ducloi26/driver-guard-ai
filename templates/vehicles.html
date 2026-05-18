@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Quản lý xe - DriverGuard AI</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/vehicles.css') }}">
+</head>
+<body>
+
+<div class="app">
+
+    <aside class="sidebar">
+        <div class="logo">
+            <div class="logo-icon">🛡</div>
+            <div>
+                <h2>DriverGuard</h2>
+                <span>AI SAFETY</span>
+            </div>
+        </div>
+
+        <nav class="menu">
+            <a href="/dashboard">📊 Dashboard</a>
+            <a href="/drivers">👥 Tài xế</a>
+            <a href="/vehicles" class="active">🚘 Quản lý xe</a>
+            <a href="/shifts">⏱ Ca làm việc</a>
+            <a href="/camera">📷 Camera AI</a>
+            <a href="/alerts">⚠️ Lịch sử cảnh báo</a>
+            <a href="/stats">📈 Thống kê</a>
+            <a href="/settings">⚙️ Cài đặt</a>
+            <a href="/login">🚪 Đăng xuất</a>
+        </nav>
+    </aside>
+
+    <main class="main">
+
+        <header class="header">
+            <div>
+                <h1>Quản lý xe</h1>
+                <p>Quản lý danh sách xe, trạng thái vận hành và tài xế phụ trách</p>
+            </div>
+
+            <div class="header-right">
+                <input class="search-box" placeholder="Tìm kiếm...">
+                <div class="user-box">
+                    <div class="avatar">A</div>
+                    <div>
+                        <strong>Admin System</strong>
+                        <p>Quản trị viên</p>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <section class="content">
+
+            <div class="vehicle-summary">
+                <div class="vehicle-card">
+                    <h3>18</h3>
+                    <p>Tổng số xe</p>
+                </div>
+
+                <div class="vehicle-card">
+                    <h3>16</h3>
+                    <p>Đang hoạt động</p>
+                </div>
+
+                <div class="vehicle-card">
+                    <h3>2</h3>
+                    <p>Đang bảo trì</p>
+                </div>
+
+                <div class="vehicle-card">
+                    <h3>12</h3>
+                    <p>Camera online</p>
+                </div>
+            </div>
+
+            <div class="vehicle-actions">
+                <div class="vehicle-filters">
+                    <input type="text" placeholder="Tìm biển số xe...">
+
+                    <select>
+                        <option>Tất cả loại xe</option>
+                        <option>Xe tải</option>
+                        <option>Xe khách</option>
+                        <option>Xe container</option>
+                        <option>Xe dịch vụ</option>
+                    </select>
+
+                    <select>
+                        <option>Tất cả trạng thái</option>
+                        <option>Đang hoạt động</option>
+                        <option>Bảo trì</option>
+                        <option>Ngưng sử dụng</option>
+                    </select>
+                </div>
+
+                <div>
+                    <button class="btn-outline">+ Thêm xe</button>
+                </div>
+            </div>
+
+            <div class="card vehicle-table-card">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Biển số xe</th>
+                            <th>Loại xe</th>
+                            <th>Hãng xe</th>
+                            <th>Tài xế phụ trách</th>
+                            <th>Camera</th>
+                            <th>Trạng thái</th>
+                            <th>Ghi chú</th>
+                            <th>Hành động</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        <tr>
+                            <td><span class="vehicle-plate">51A-12345</span></td>
+                            <td>
+                                <div class="vehicle-type">Xe tải</div>
+                                <div class="vehicle-note">Tải trọng 5 tấn</div>
+                            </td>
+                            <td>Hyundai</td>
+                            <td>Nguyễn Văn A</td>
+                            <td><span class="badge badge-success">Online</span></td>
+                            <td><span class="badge badge-success">Hoạt động</span></td>
+                            <td>Đang chạy tuyến nội thành</td>
+                            <td>
+                                <button class="btn-small btn-view">Xem</button>
+                                <button class="btn-small btn-edit">Sửa</button>
+                                <button class="btn-small btn-delete">Xóa</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td><span class="vehicle-plate">51B-67890</span></td>
+                            <td>
+                                <div class="vehicle-type">Xe khách</div>
+                                <div class="vehicle-note">29 chỗ</div>
+                            </td>
+                            <td>Thaco</td>
+                            <td>Trần Văn B</td>
+                            <td><span class="badge badge-success">Online</span></td>
+                            <td><span class="badge badge-warning">Cảnh báo</span></td>
+                            <td>Tài xế có nhiều cảnh báo</td>
+                            <td>
+                                <button class="btn-small btn-view">Xem</button>
+                                <button class="btn-small btn-edit">Sửa</button>
+                                <button class="btn-small btn-delete">Xóa</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td><span class="vehicle-plate">60C-45678</span></td>
+                            <td>
+                                <div class="vehicle-type">Xe container</div>
+                                <div class="vehicle-note">40 feet</div>
+                            </td>
+                            <td>Hino</td>
+                            <td>Lê Hoàng C</td>
+                            <td><span class="badge badge-success">Online</span></td>
+                            <td><span class="badge badge-success">Hoạt động</span></td>
+                            <td>Ca đêm tuyến liên tỉnh</td>
+                            <td>
+                                <button class="btn-small btn-view">Xem</button>
+                                <button class="btn-small btn-edit">Sửa</button>
+                                <button class="btn-small btn-delete">Xóa</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td><span class="vehicle-plate">29H-88999</span></td>
+                            <td>
+                                <div class="vehicle-type">Xe dịch vụ</div>
+                                <div class="vehicle-note">7 chỗ</div>
+                            </td>
+                            <td>Toyota</td>
+                            <td>Phạm Minh D</td>
+                            <td><span class="badge badge-danger">Offline</span></td>
+                            <td><span class="badge badge-danger">Nguy hiểm</span></td>
+                            <td>Cần kiểm tra camera</td>
+                            <td>
+                                <button class="btn-small btn-view">Xem</button>
+                                <button class="btn-small btn-edit">Sửa</button>
+                                <button class="btn-small btn-delete">Xóa</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td><span class="vehicle-plate">51A-99100</span></td>
+                            <td>
+                                <div class="vehicle-type">Xe tải</div>
+                                <div class="vehicle-note">Tải trọng 2.5 tấn</div>
+                            </td>
+                            <td>Isuzu</td>
+                            <td>Hoàng Văn E</td>
+                            <td><span class="badge badge-warning">Offline</span></td>
+                            <td><span class="badge badge-warning">Bảo trì</span></td>
+                            <td>Đang bảo dưỡng định kỳ</td>
+                            <td>
+                                <button class="btn-small btn-view">Xem</button>
+                                <button class="btn-small btn-edit">Sửa</button>
+                                <button class="btn-small btn-delete">Xóa</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+        </section>
+
+    </main>
+
+</div>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/logout.css') }}">
+<script src="{{ url_for('static', filename='js/logout.js') }}"></script>
+
+<div class="logout-modal" id="logoutModal">
+
+    <div class="logout-box">
+
+        <div class="logout-icon">
+            ⎋
+        </div>
+
+        <h2>Đăng xuất?</h2>
+
+        <p>
+            Bạn có chắc muốn đăng xuất khỏi hệ thống DriverGuard AI?
+        </p>
+
+        <div class="logout-actions">
+
+            <button
+                class="btn-logout-cancel"
+                onclick="closeLogoutModal()"
+            >
+                Hủy
+            </button>
+
+            <a
+                href="/login"
+                class="btn-logout"
+            >
+                Đăng xuất
+            </a>
+
+        </div>
+
+    </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Đăng nhập - DriverGuard AI</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
+</head>
+<body>
+
+<div class="auth-page">
+
+    <div class="auth-left">
+        <div class="auth-brand">
+            <div class="logo-box">🛡</div>
+            <h1>DriverGuard AI</h1>
+            <p>Hệ thống giám sát an toàn tài xế</p>
+
+            <div class="camera-preview">
+                <div class="live-badge">● LIVE</div>
+                <div class="cam-id">CAM-01</div>
+                <div class="camera-user">👤</div>
+                <div class="safe-status">✓ TỈNH TÁO</div>
+            </div>
+
+            <div class="ai-stats">
+                <span>EAR: 0.31</span>
+                <span>MAR: 0.15</span>
+                <span>FPS: 28</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="auth-right">
+        <div class="auth-form">
+            <h2>Đăng nhập hệ thống</h2>
+            <p>Quản lý an toàn tài xế bằng AI</p>
+
+            <label>Email / Tên đăng nhập</label>
+            <input type="text" placeholder="admin@driverguard.vn">
+
+            <label>Mật khẩu</label>
+            <input type="password" placeholder="••••••••">
+
+            <div class="auth-row">
+                <label class="remember">
+                    <input type="checkbox" checked>
+                    Ghi nhớ đăng nhập
+                </label>
+                <a href="#">Quên mật khẩu?</a>
+            </div>
+
+            <a href="/dashboard" class="btn-main">Đăng nhập</a>
+
+            <div class="auth-link">
+                Chưa có tài khoản?
+                <a href="/register">Đăng ký ngay</a>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+</body>
+</html>
