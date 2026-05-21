@@ -65,24 +65,39 @@
 
                         <div class="camera-top">
                             <div class="live-tag">● LIVE CAMERA</div>
-                            <div class="cam-code">CAM-01 | FPS: 28</div>
+                            <div class="cam-code">CAM-01 | Realtime</div>
                         </div>
 
-                        <div class="camera-face">👤</div>
+                        <img
+                            src=""
+                            class="camera-stream"
+                            alt="DriverGuard AI Camera"
+                        >
 
                         <div class="camera-overlay">
                             <div class="ai-chip">Tài xế: Nguyễn Văn A</div>
-                            <div class="ai-chip">EAR: 0.18</div>
-                            <div class="ai-chip">MAR: 0.62</div>
-                            <div class="ai-chip danger">CẢNH BÁO NGỦ GẬT</div>
+                            <div class="ai-chip">EAR: --</div>
+                            <div class="ai-chip">MAR: --</div>
+                            <div class="ai-chip">Trạng thái: Đang phân tích</div>
                         </div>
                     </div>
 
                     <div class="camera-actions">
-                        <a href="#" class="btn-main">Bắt đầu camera</a>
-                        <button class="btn-outline">Dừng camera</button>
-                        <button class="btn-outline">Chụp ảnh minh chứng</button>
-                        <button class="btn-outline">Gửi cảnh báo thủ công</button>
+                        <button class="btn-main" onclick="startCamera()">
+                            Bắt đầu camera
+                        </button>
+
+                        <button class="btn-outline" onclick="stopCamera()">
+                            Dừng camera
+                        </button>
+
+                        <button class="btn-outline" onclick="captureImage()">
+                            Chụp ảnh minh chứng
+                        </button>
+
+                        <button class="btn-outline">
+                            Gửi cảnh báo thủ công
+                        </button>
                     </div>
 
                     <div class="alert-popup">
@@ -186,43 +201,22 @@
     </main>
 
 </div>
+
 <link rel="stylesheet" href="{{ url_for('static', filename='css/logout.css') }}">
 <script src="{{ url_for('static', filename='js/logout.js') }}"></script>
+<script src="{{ url_for('static', filename='js/camera.js') }}"></script>
 
 <div class="logout-modal" id="logoutModal">
-
     <div class="logout-box">
-
-        <div class="logout-icon">
-            ⎋
-        </div>
-
+        <div class="logout-icon">⎋</div>
         <h2>Đăng xuất?</h2>
-
-        <p>
-            Bạn có chắc muốn đăng xuất khỏi hệ thống DriverGuard AI?
-        </p>
-
+        <p>Bạn có chắc muốn đăng xuất khỏi hệ thống DriverGuard AI?</p>
         <div class="logout-actions">
-
-            <button
-                class="btn-logout-cancel"
-                onclick="closeLogoutModal()"
-            >
-                Hủy
-            </button>
-
-            <a
-                href="/login"
-                class="btn-logout"
-            >
-                Đăng xuất
-            </a>
-
+            <button class="btn-logout-cancel" onclick="closeLogoutModal()">Hủy</button>
+            <a href="/login" class="btn-logout">Đăng xuất</a>
         </div>
-
     </div>
-
 </div>
+
 </body>
 </html>
