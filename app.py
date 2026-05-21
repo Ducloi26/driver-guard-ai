@@ -36,8 +36,33 @@ def calculate_ear(eye_points):
     ear = (vertical_1 + vertical_2) / (2.0 * horizontal)
 
     return ear
+def calculate_mar(mouth_points):
+    vertical_1 = distance(mouth_points[1], mouth_points[5])
+    vertical_2 = distance(mouth_points[2], mouth_points[4])
+
+    horizontal = distance(mouth_points[0], mouth_points[3])
+
+    mar = (vertical_1 + vertical_2) / (2.0 * horizontal)
+
+    return mar
+def detect_head_down(face_landmarks, width, height):
+    nose = face_landmarks.landmark[1]
+    chin = face_landmarks.landmark[152]
+
+    nose_y = int(nose.y * height)
+    chin_y = int(chin.y * height)
+
+    distance_nose_chin = chin_y - nose_y
+
+    if distance_nose_chin < 70:
+        return True
+    else:
+        return False
 LEFT_EYE_INDEXES = [33, 160, 158, 133, 153, 144]
 RIGHT_EYE_INDEXES = [362, 385, 387, 263, 373, 380]
+MOUTH_INDEXES = [61, 81, 13, 291, 311, 14]
+HEAD_POSE_INDEXES = [1, 152, 33, 263, 61, 291]
+MAR_THRESHOLD = 0.3
 EAR_THRESHOLD = 0.22
 
 # Nhắm mắt liên tục khoảng 30 giây nếu camera ~20 FPS
@@ -53,9 +78,23 @@ closed_counter = 0
 blink_counter = 0
 tired_event_counter = 0
 blink_start_time = time.time()
+
+YAWN_CONFIRM_TIME = 10
+
+mouth_open_detected = False
+mouth_open_time = 0
+yawn_counter = 0
+HEAD_DOWN_THRESHOLD = 2
+
+head_down_start_time = 0
+head_down_detected = False
+alert_triggered = False
 def generate_frames():
     global camera_stream, camera_running, last_frame
     global closed_counter, blink_counter, tired_event_counter, blink_start_time
+    global mouth_open_detected, mouth_open_time, yawn_counter
+    global head_down_start_time, head_down_detected
+    global alert_triggered
 
     while camera_running:
         if camera_stream is None or not camera_stream.isOpened():
@@ -78,16 +117,37 @@ def generate_frames():
             left_ear = None
             right_ear = None
             ear = None
+            mar = None
+
             eye_status = "NO FACE"
+            mouth_status = "NORMAL"
+            head_status = "NORMAL"
             drowsy_status = "NORMAL"
             send_alert = False
 
             if results.multi_face_landmarks:
                 for face_landmarks in results.multi_face_landmarks:
                     height, width, _ = ai_frame.shape
+                    current_time = time.time()
+
+                    if detect_head_down(face_landmarks, width, height):
+                        head_status = "HEAD DOWN"
+
+                        if not head_down_detected:
+                            head_down_detected = True
+                            head_down_start_time = current_time
+                        else:
+                            if current_time - head_down_start_time >= HEAD_DOWN_THRESHOLD:
+                                send_alert = True
+                                alert_triggered = True
+                                drowsy_status = "HEAD DOWN ALERT"
+                    else:
+                        head_status = "NORMAL"
+                        head_down_detected = False
 
                     left_eye = []
                     right_eye = []
+                    mouth_points = []
 
                     for index in LEFT_EYE_INDEXES:
                         landmark = face_landmarks.landmark[index]
@@ -105,12 +165,18 @@ def generate_frames():
                         right_eye.append((x, y))
                         cv2.circle(ai_frame, (x, y), 3, (0, 255, 255), -1)
 
+                    for index in MOUTH_INDEXES:
+                        landmark = face_landmarks.landmark[index]
+                        x = int(landmark.x * width)
+                        y = int(landmark.y * height)
+
+                        mouth_points.append((x, y))
+                        cv2.circle(ai_frame, (x, y), 3, (255, 0, 255), -1)
+
                     if len(left_eye) == 6 and len(right_eye) == 6:
                         left_ear = calculate_ear(left_eye)
                         right_ear = calculate_ear(right_eye)
                         ear = (left_ear + right_ear) / 2.0
-
-                        current_time = time.time()
 
                         if ear < EAR_THRESHOLD:
                             eye_status = "EYES CLOSED"
@@ -123,27 +189,43 @@ def generate_frames():
 
                             closed_counter = 0
 
-                        # 15 lần blink trong 40 giây = 1 dấu hiệu buồn ngủ
-                        if current_time - blink_start_time >= 40:
+                        if current_time - blink_start_time >= 30:
                             if blink_counter >= BLINK_WARNING_THRESHOLD:
                                 tired_event_counter += 1
 
                             blink_counter = 0
                             blink_start_time = current_time
 
-                        # Nhắm mắt liên tục 30 giây → gửi cảnh báo ngay
                         if closed_counter >= DROWSY_FRAME_THRESHOLD:
                             drowsy_status = "DROWSY"
                             send_alert = True
+                            alert_triggered = True
 
-                        # Có dấu hiệu buồn ngủ 2 lần → gửi cảnh báo
-                        elif tired_event_counter >= 2:
+                        elif tired_event_counter >= 2 or yawn_counter >= 3:
                             drowsy_status = "TIRED"
                             send_alert = True
+                            alert_triggered = True
 
+                    if len(mouth_points) == 6:
+                        mar = calculate_mar(mouth_points)
+
+                        if mar > MAR_THRESHOLD:
+                            mouth_status = "MOUTH OPEN"
+
+                            if not mouth_open_detected:
+                                mouth_open_detected = True
+                                mouth_open_time = current_time
+                            else:
+                                if current_time - mouth_open_time < YAWN_CONFIRM_TIME:
+                                    mouth_open_time = current_time
                         else:
-                            drowsy_status = "NORMAL"
-                            send_alert = False
+                            mouth_status = "NORMAL"
+
+                        if mouth_open_detected:
+                            if current_time - mouth_open_time >= YAWN_CONFIRM_TIME:
+                                yawn_counter += 1
+                                mouth_status = "YAWNING"
+                                mouth_open_detected = False
 
                     mp_drawing.draw_landmarks(
                         image=ai_frame,
@@ -164,120 +246,59 @@ def generate_frames():
             original_frame = cv2.resize(original_frame, (480, 360))
             ai_frame = cv2.resize(ai_frame, (480, 360))
 
-            cv2.putText(
-                original_frame,
-                "CAMERA GOC",
-                (20, 35),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.8,
-                (0, 255, 255),
-                2
-            )
+            cv2.putText(original_frame, "CAMERA GOC", (20, 35),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
 
-            cv2.putText(
-                ai_frame,
-                "FACE MESH AI",
-                (20, 35),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.8,
-                (0, 255, 0),
-                2
-            )
+            cv2.putText(ai_frame, "FACE MESH AI", (20, 35),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
 
             if ear is not None:
-                cv2.putText(
-                    ai_frame,
-                    f"L-EAR: {left_ear:.2f}",
-                    (20, 70),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.7,
-                    (0, 255, 0),
-                    2
-                )
+                cv2.putText(ai_frame, f"L-EAR: {left_ear:.2f}", (20, 70),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
 
-                cv2.putText(
-                    ai_frame,
-                    f"R-EAR: {right_ear:.2f}",
-                    (20, 100),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.7,
-                    (0, 255, 255),
-                    2
-                )
+                cv2.putText(ai_frame, f"R-EAR: {right_ear:.2f}", (20, 100),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
 
-                cv2.putText(
-                    ai_frame,
-                    f"AVG-EAR: {ear:.2f}",
-                    (20, 130),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.8,
-                    (255, 255, 0),
-                    2
-                )
+                cv2.putText(ai_frame, f"AVG-EAR: {ear:.2f}", (20, 130),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 0), 2)
 
-                cv2.putText(
-                    ai_frame,
-                    f"STATUS: {eye_status}",
-                    (20, 160),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.8,
-                    (0, 0, 255) if eye_status == "EYES CLOSED" else (0, 255, 0),
-                    2
-                )
+                cv2.putText(ai_frame, f"STATUS: {eye_status}", (20, 160),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.8,
+                            (0, 0, 255) if eye_status == "EYES CLOSED" else (0, 255, 0), 2)
 
-                cv2.putText(
-                    ai_frame,
-                    f"DROWSY: {drowsy_status}",
-                    (20, 190),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.8,
-                    (0, 0, 255) if send_alert else (0, 255, 0),
-                    2
-                )
+                cv2.putText(ai_frame, f"DROWSY: {drowsy_status}", (20, 190),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.8,
+                            (0, 0, 255) if send_alert else (0, 255, 0), 2)
 
-                cv2.putText(
-                    ai_frame,
-                    f"BLINKS/30S: {blink_counter}",
-                    (20, 220),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.7,
-                    (255, 255, 255),
-                    2
-                )
+                cv2.putText(ai_frame, f"BLINKS/30S: {blink_counter}", (20, 220),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
 
-                cv2.putText(
-                    ai_frame,
-                    f"TIRED EVENTS: {tired_event_counter}/2",
-                    (20, 250),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.7,
-                    (255, 255, 255),
-                    2
-                )
+                cv2.putText(ai_frame, f"TIRED EVENTS: {tired_event_counter}/2", (20, 250),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
 
-                if send_alert:
-                    cv2.putText(
-                        ai_frame,
-                        "SEND ALERT TO MANAGER",
-                        (20, 290),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.8,
-                        (0, 0, 255),
-                        2
-                    )
+                if mar is not None:
+                    cv2.putText(ai_frame, f"MAR: {mar:.2f}", (20, 280),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 255), 2)
+
+                    cv2.putText(ai_frame, f"MOUTH: {mouth_status}", (20, 310),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.7,
+                                (0, 0, 255) if mouth_status == "YAWNING" else (0, 255, 0), 2)
+
+                    cv2.putText(ai_frame, f"YAWNS: {yawn_counter}", (20, 340),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 255), 2)
+
+                cv2.putText(ai_frame, f"HEAD: {head_status}", (20, 370),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7,
+                            (0, 0, 255) if head_status == "HEAD DOWN" else (0, 255, 0), 2)
+
+                if send_alert or alert_triggered:
+                    cv2.putText(ai_frame, "SEND ALERT TO MANAGER", (20, 340),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
             else:
-                cv2.putText(
-                    ai_frame,
-                    "NO FACE DETECTED",
-                    (20, 80),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.8,
-                    (0, 0, 255),
-                    2
-                )
+                cv2.putText(ai_frame, "NO FACE DETECTED", (20, 80),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
 
             combined_frame = cv2.hconcat([original_frame, ai_frame])
-
             last_frame = combined_frame.copy()
 
             ret, buffer = cv2.imencode(".jpg", combined_frame)
