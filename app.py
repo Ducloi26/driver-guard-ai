@@ -1,10 +1,18 @@
-from flask import Flask, render_template, Response, jsonify
+from flask import Flask, render_template, Response, jsonify, request, redirect, url_for, flash
 import cv2
 import os
 import mediapipe as mp
 import time
 from datetime import datetime
+from database import (
+    clean_form_data,
+    get_all_drivers,
+    add_driver as add_driver_record,
+    get_all_alerts,
+    get_dashboard_stats,
+)
 app = Flask(__name__)
+app.secret_key = os.getenv("FLASK_SECRET_KEY", "driver-guard-ai-dev-secret")
 
 camera_stream = None
 camera_running = False
@@ -394,12 +402,14 @@ def register():
 
 @app.route("/dashboard")
 def dashboard():
-    return render_template("dashboard.html")
+    stats = get_dashboard_stats()
+    return render_template("dashboard.html", stats=stats)
 
 
 @app.route("/drivers")
 def drivers():
-    return render_template("drivers.html")
+    drivers_list = get_all_drivers()
+    return render_template("drivers.html", drivers=drivers_list)
 
 
 @app.route("/vehicles")
@@ -414,7 +424,8 @@ def shifts():
 
 @app.route("/alerts")
 def alerts():
-    return render_template("alerts.html")
+    alerts_list = get_all_alerts()
+    return render_template("alerts.html", alerts=alerts_list)
 
 
 @app.route("/stats")
@@ -432,8 +443,19 @@ def profile():
     return render_template("profile.html")
 
 
-@app.route("/add-driver")
+@app.route("/add-driver", methods=["GET", "POST"])
 def add_driver():
+    if request.method == "POST":
+        form_data = clean_form_data(request.form)
+        success, message = add_driver_record(form_data)
+
+        if success:
+            flash(message, "success")
+            return redirect(url_for("drivers"))
+
+        flash(message, "error")
+        return render_template("add_driver.html", form_data=form_data)
+
     return render_template("add_driver.html")
 
 

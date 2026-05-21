@@ -126,93 +126,45 @@
                     </thead>
 
                     <tbody>
+                        {% for driver in drivers %}
                         <tr>
                             <td>
                                 <div class="driver-info">
-                                    <div class="driver-avatar">NA</div>
+                                    <div class="driver-avatar">
+                                        {{ (driver.full_name or 'TX')[:2] | upper }}
+                                    </div>
                                     <div>
-                                        <div class="driver-name">Nguyễn Văn A</div>
-                                        <div class="driver-id">ID: DRV-001</div>
+                                        <div class="driver-name">{{ driver.full_name }}</div>
+                                        <div class="driver-id">ID: {{ driver.driver_code or driver.id }}</div>
                                     </div>
                                 </div>
                             </td>
-                            <td>0901234567</td>
-                            <td><span class="plate">51A-12345</span></td>
-                            <td>Ca sáng</td>
-                            <td><span class="badge badge-success">Hoạt động</span></td>
-                            <td><span class="badge badge-warning">2 lần</span></td>
+                            <td>{{ driver.phone or '-' }}</td>
+                            <td><span class="plate">Chưa gán</span></td>
+                            <td>Chưa gán</td>
                             <td>
-                                <button class="btn-small btn-view">Xem</button>
-                                <button class="btn-small btn-edit">Sửa</button>
-                                <button class="btn-small btn-delete">Xóa</button>
+                                {% if driver.status == 'active' %}
+                                    <span class="badge badge-success">Hoạt động</span>
+                                {% elif driver.status == 'suspended' %}
+                                    <span class="badge badge-warning">Tạm nghỉ</span>
+                                {% else %}
+                                    <span class="badge badge-danger">Ngừng hoạt động</span>
+                                {% endif %}
+                            </td>
+                            <td><span class="badge badge-warning">0 lần</span></td>
+                            <td>
+                                <button class="btn-small btn-view" type="button">Xem</button>
+                                <button class="btn-small btn-edit" type="button">Sửa</button>
+                                <button class="btn-small btn-delete" type="button">Xóa</button>
                             </td>
                         </tr>
-
+                        {% else %}
                         <tr>
-                            <td>
-                                <div class="driver-info">
-                                    <div class="driver-avatar">TB</div>
-                                    <div>
-                                        <div class="driver-name">Trần Văn B</div>
-                                        <div class="driver-id">ID: DRV-002</div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td>0912345678</td>
-                            <td><span class="plate">51B-67890</span></td>
-                            <td>Ca chiều</td>
-                            <td><span class="badge badge-warning">Cảnh báo</span></td>
-                            <td><span class="badge badge-danger">7 lần</span></td>
-                            <td>
-                                <button class="btn-small btn-view">Xem</button>
-                                <button class="btn-small btn-edit">Sửa</button>
-                                <button class="btn-small btn-delete">Xóa</button>
+                            <td colspan="7" style="text-align:center;padding:28px;">
+                                Chưa có tài xế trong hệ thống
                             </td>
                         </tr>
-
-                        <tr>
-                            <td>
-                                <div class="driver-info">
-                                    <div class="driver-avatar">LC</div>
-                                    <div>
-                                        <div class="driver-name">Lê Hoàng C</div>
-                                        <div class="driver-id">ID: DRV-003</div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td>0923456789</td>
-                            <td><span class="plate">60C-45678</span></td>
-                            <td>Ca đêm</td>
-                            <td><span class="badge badge-success">Hoạt động</span></td>
-                            <td><span class="badge badge-warning">1 lần</span></td>
-                            <td>
-                                <button class="btn-small btn-view">Xem</button>
-                                <button class="btn-small btn-edit">Sửa</button>
-                                <button class="btn-small btn-delete">Xóa</button>
-                            </td>
-                        </tr>
-
-                        <tr>
-                            <td>
-                                <div class="driver-info">
-                                    <div class="driver-avatar">PD</div>
-                                    <div>
-                                        <div class="driver-name">Phạm Minh D</div>
-                                        <div class="driver-id">ID: DRV-004</div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td>0934567890</td>
-                            <td><span class="plate">29H-88999</span></td>
-                            <td>Ca sáng</td>
-                            <td><span class="badge badge-danger">Nguy hiểm</span></td>
-                            <td><span class="badge badge-danger">12 lần</span></td>
-                            <td>
-                                <button class="btn-small btn-view">Xem</button>
-                                <button class="btn-small btn-edit">Sửa</button>
-                                <button class="btn-small btn-delete">Xóa</button>
-                            </td>
-                        </tr>
+                        {% endfor %}
                     </tbody>
                 </table>
             </div>

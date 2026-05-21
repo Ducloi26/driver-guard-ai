@@ -81,39 +81,39 @@
                     </div>
                 </div>
 
-                <div class="card form-card">
+                <form class="card form-card" method="POST" action="{{ url_for('add_driver') }}">
                     <h2>Thông tin tài xế</h2>
                     <p>Thông tin này dùng để quản lý, gán xe và lưu lịch sử cảnh báo.</p>
 
                     <div class="form-grid">
                         <div class="form-group">
                             <label>Họ và tên</label>
-                            <input type="text" placeholder="Nguyễn Văn A">
+                            <input type="text" name="full_name" value="{{ form_data.full_name if form_data else '' }}" placeholder="Nguyễn Văn A" required>
                         </div>
 
                         <div class="form-group">
                             <label>Mã tài xế</label>
-                            <input type="text" placeholder="DRV-001">
+                            <input type="text" name="driver_code" value="{{ form_data.driver_code if form_data else '' }}" placeholder="DRV-001">
                         </div>
 
                         <div class="form-group">
                             <label>Số điện thoại</label>
-                            <input type="text" placeholder="0901234567">
+                            <input type="text" name="phone" value="{{ form_data.phone if form_data else '' }}" placeholder="0901234567">
                         </div>
 
                         <div class="form-group">
                             <label>Email</label>
-                            <input type="email" placeholder="driver@email.com">
+                            <input type="email" name="email" value="{{ form_data.email if form_data else '' }}" placeholder="driver@email.com">
                         </div>
 
                         <div class="form-group">
                             <label>Ngày sinh</label>
-                            <input type="date">
+                            <input type="date" name="date_of_birth" value="{{ form_data.date_of_birth if form_data else '' }}">
                         </div>
 
                         <div class="form-group">
                             <label>Số giấy phép lái xe</label>
-                            <input type="text" placeholder="GPLX-123456789">
+                            <input type="text" name="license_number" value="{{ form_data.license_number if form_data else '' }}" placeholder="GPLX-123456789">
                         </div>
 
                         <div class="form-group">
@@ -147,17 +147,17 @@
 
                         <div class="form-group">
                             <label>Trạng thái</label>
-                            <select>
-                                <option>Đang hoạt động</option>
-                                <option>Tạm nghỉ</option>
-                                <option>Ngừng hoạt động</option>
+                            <select name="status">
+                                <option value="active" {% if form_data and form_data.status == 'active' %}selected{% endif %}>Đang hoạt động</option>
+                                <option value="suspended" {% if form_data and form_data.status == 'suspended' %}selected{% endif %}>Tạm nghỉ</option>
+                                <option value="inactive" {% if form_data and form_data.status == 'inactive' %}selected{% endif %}>Ngừng hoạt động</option>
                             </select>
                         </div>
                     </div>
 
                     <div class="form-group">
                         <label>Địa chỉ</label>
-                        <input type="text" placeholder="Nhập địa chỉ tài xế">
+                        <input type="text" name="address" value="{{ form_data.address if form_data else '' }}" placeholder="Nhập địa chỉ tài xế">
                     </div>
 
                     <div class="form-group">
@@ -167,9 +167,9 @@
 
                     <div class="form-actions">
                         <a href="/drivers" class="btn-cancel">Hủy</a>
-                        <a href="/drivers" class="btn-main btn-save">Lưu tài xế</a>
+                        <button type="submit" class="btn-main btn-save">Lưu tài xế</button>
                     </div>
-                </div>
+                </form>
 
             </div>
 
