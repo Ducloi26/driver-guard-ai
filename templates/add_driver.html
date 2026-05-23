@@ -57,7 +57,7 @@
 
         <section class="content">
 
-            <div class="add-driver-layout">
+            <form class="add-driver-layout" method="POST" action="{{ url_for('add_driver') }}" enctype="multipart/form-data">
 
                 <div class="card upload-card">
                     <h3>Ảnh nhận diện</h3>
@@ -68,7 +68,10 @@
                         <span>JPG, PNG, JPEG</span>
                     </div>
 
-                    <button class="btn-main">Chọn ảnh</button>
+                    <label class="btn-main" style="display:block;text-align:center;cursor:pointer;">
+                        Chọn ảnh
+                        <input type="file" name="driver_image" accept="image/jpeg,image/png,image/webp" style="display:none;">
+                    </label>
 
                     <div class="note-box" style="margin-top:16px;">
                         <strong>Yêu cầu ảnh:</strong>
@@ -81,7 +84,7 @@
                     </div>
                 </div>
 
-                <form class="card form-card" method="POST" action="{{ url_for('add_driver') }}">
+                <div class="card form-card">
                     <h2>Thông tin tài xế</h2>
                     <p>Thông tin này dùng để quản lý, gán xe và lưu lịch sử cảnh báo.</p>
 
@@ -169,9 +172,9 @@
                         <a href="/drivers" class="btn-cancel">Hủy</a>
                         <button type="submit" class="btn-main btn-save">Lưu tài xế</button>
                     </div>
-                </form>
+                </div>
 
-            </div>
+            </form>
 
         </section>
 

@@ -59,34 +59,34 @@
             <div class="metric-grid">
                 <div class="metric-card blue">
                     <div class="metric-title">Tổng tài xế</div>
-                    <div class="metric-value">24</div>
-                    <div class="metric-sub">4 tài xế đang hoạt động</div>
+                    <div class="metric-value">{{ stats.total_drivers }}</div>
+                    <div class="metric-sub">Tài xế đang hoạt động</div>
                 </div>
 
                 <div class="metric-card success">
                     <div class="metric-title">Tổng số xe</div>
-                    <div class="metric-value">18</div>
-                    <div class="metric-sub">16 xe đang hoạt động</div>
+                    <div class="metric-value">{{ stats.total_vehicles }}</div>
+                    <div class="metric-sub">Xe đang hoạt động</div>
                 </div>
 
                 <div class="metric-card danger">
                     <div class="metric-title">Cảnh báo hôm nay</div>
-                    <div class="metric-value">9</div>
-                    <div class="metric-sub">+3 so với hôm qua</div>
+                    <div class="metric-value">{{ stats.total_alerts_today }}</div>
+                    <div class="metric-sub">Theo ngày hiện tại</div>
                 </div>
             </div>
 
             <div class="metric-grid">
                 <div class="metric-card warning">
-                    <div class="metric-title">Tài xế nguy cơ cao</div>
-                    <div class="metric-value">2</div>
-                    <div class="metric-sub">Cần kiểm tra ngay</div>
+                    <div class="metric-title">Cảnh báo nguy hiểm</div>
+                    <div class="metric-value">{{ stats.high_alerts_today }}</div>
+                    <div class="metric-sub">Mức cao trong hôm nay</div>
                 </div>
 
                 <div class="metric-card blue">
                     <div class="metric-title">Ca đang hoạt động</div>
-                    <div class="metric-value">6</div>
-                    <div class="metric-sub">Trong tổng 8 ca</div>
+                    <div class="metric-value">{{ stats.active_shifts }}</div>
+                    <div class="metric-sub">Ca đang diễn ra</div>
                 </div>
 
                 <div class="metric-card success">

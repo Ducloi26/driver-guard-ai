@@ -6,8 +6,19 @@ import time
 from datetime import datetime
 from database import (
     clean_form_data,
+    clean_vehicle_form_data,
+    clean_shift_form_data,
+    upload_driver_image,
     get_all_drivers,
+    attach_current_shift_to_drivers,
     add_driver as add_driver_record,
+    get_all_vehicles,
+    attach_current_shift_to_vehicles,
+    get_vehicle_stats,
+    add_vehicle as add_vehicle_record,
+    get_all_shifts,
+    get_shift_stats,
+    add_shift as add_shift_record,
     get_all_alerts,
     get_dashboard_stats,
 )
@@ -409,17 +420,67 @@ def dashboard():
 @app.route("/drivers")
 def drivers():
     drivers_list = get_all_drivers()
+    drivers_list = attach_current_shift_to_drivers(drivers_list)
     return render_template("drivers.html", drivers=drivers_list)
 
 
 @app.route("/vehicles")
 def vehicles():
-    return render_template("vehicles.html")
+    vehicles_list = get_all_vehicles()
+    vehicles_list = attach_current_shift_to_vehicles(vehicles_list)
+    vehicle_stats = get_vehicle_stats(vehicles_list)
+    return render_template("vehicles.html", vehicles=vehicles_list, vehicle_stats=vehicle_stats)
+
+
+@app.route("/add-vehicle", methods=["GET", "POST"])
+def add_vehicle():
+    if request.method == "POST":
+        form_data = clean_vehicle_form_data(request.form)
+        success, message = add_vehicle_record(form_data)
+
+        if success:
+            flash(message, "success")
+            return redirect(url_for("vehicles"))
+
+        flash(message, "error")
+        return render_template("add_vehicle.html", form_data=form_data)
+
+    return render_template("add_vehicle.html")
 
 
 @app.route("/shifts")
 def shifts():
-    return render_template("shifts.html")
+    shifts_list = get_all_shifts()
+    shift_stats = get_shift_stats(shifts_list)
+    return render_template("shifts.html", shifts=shifts_list, shift_stats=shift_stats)
+
+
+@app.route("/add-shift", methods=["GET", "POST"])
+def add_shift():
+    drivers_list = get_all_drivers()
+    vehicles_list = get_all_vehicles()
+
+    if request.method == "POST":
+        form_data = clean_shift_form_data(request.form)
+        success, message = add_shift_record(form_data)
+
+        if success:
+            flash(message, "success")
+            return redirect(url_for("shifts"))
+
+        flash(message, "error")
+        return render_template(
+            "add_shift.html",
+            form_data=form_data,
+            drivers=drivers_list,
+            vehicles=vehicles_list
+        )
+
+    return render_template(
+        "add_shift.html",
+        drivers=drivers_list,
+        vehicles=vehicles_list
+    )
 
 
 @app.route("/alerts")
@@ -447,6 +508,17 @@ def profile():
 def add_driver():
     if request.method == "POST":
         form_data = clean_form_data(request.form)
+        upload_success, avatar_path, upload_message = upload_driver_image(
+            request.files.get("driver_image")
+        )
+
+        if not upload_success:
+            flash(upload_message, "error")
+            return render_template("add_driver.html", form_data=form_data)
+
+        if avatar_path:
+            form_data["avatar_path"] = avatar_path
+
         success, message = add_driver_record(form_data)
 
         if success:
