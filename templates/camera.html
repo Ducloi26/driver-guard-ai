@@ -83,6 +83,13 @@
                     </div>
 
                     <div class="camera-actions">
+                        <select id="driverSelect" style="padding:10px 14px; border-radius:8px; border:1px solid #444; background:#1e1e2e; color:#fff; font-size:14px; min-width:200px;">
+                            <option value="">-- Chọn tài xế --</option>
+                            {% for driver in drivers %}
+                            <option value="{{ driver.id }}">{{ driver.full_name }} ({{ driver.driver_code or 'N/A' }})</option>
+                            {% endfor %}
+                        </select>
+
                         <button class="btn-main" onclick="startCamera()">
                             Bắt đầu camera
                         </button>
@@ -93,10 +100,6 @@
 
                         <button class="btn-outline" onclick="captureImage()">
                             Chụp ảnh minh chứng
-                        </button>
-
-                        <button class="btn-outline">
-                            Gửi cảnh báo thủ công
                         </button>
                     </div>
 

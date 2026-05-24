@@ -11,12 +11,16 @@ from database import (
     get_all_alerts,
     get_dashboard_stats,
 )
+from utils.alert_manager import process_violation
+from utils.logger import setup_logger
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "driver-guard-ai-dev-secret")
+logger = setup_logger(__name__)
 
 camera_stream = None
 camera_running = False
 last_frame = None
+current_driver_id = None
 mp_face_mesh = mp.solutions.face_mesh
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
@@ -40,6 +44,9 @@ def calculate_ear(eye_points):
     # Khoảng cách ngang
     horizontal = distance(eye_points[0], eye_points[3])
 
+    if horizontal == 0:
+        return 0.0
+
     # Công thức EAR
     ear = (vertical_1 + vertical_2) / (2.0 * horizontal)
 
@@ -49,6 +56,9 @@ def calculate_mar(mouth_points):
     vertical_2 = distance(mouth_points[2], mouth_points[4])
 
     horizontal = distance(mouth_points[0], mouth_points[3])
+
+    if horizontal == 0:
+        return 0.0
 
     mar = (vertical_1 + vertical_2) / (2.0 * horizontal)
 
@@ -97,12 +107,31 @@ HEAD_DOWN_THRESHOLD = 2
 head_down_start_time = 0
 head_down_detected = False
 alert_triggered = False
+
+
+def reset_detection_state():
+    global closed_counter, blink_counter, tired_event_counter, blink_start_time
+    global mouth_open_detected, mouth_open_time, yawn_counter
+    global head_down_start_time, head_down_detected, alert_triggered
+
+    closed_counter = 0
+    blink_counter = 0
+    tired_event_counter = 0
+    blink_start_time = time.time()
+    mouth_open_detected = False
+    mouth_open_time = 0
+    yawn_counter = 0
+    head_down_start_time = 0
+    head_down_detected = False
+    alert_triggered = False
+
+
 def generate_frames():
     global camera_stream, camera_running, last_frame
     global closed_counter, blink_counter, tired_event_counter, blink_start_time
     global mouth_open_detected, mouth_open_time, yawn_counter
     global head_down_start_time, head_down_detected
-    global alert_triggered
+    global alert_triggered, current_driver_id
 
     while camera_running:
         if camera_stream is None or not camera_stream.isOpened():
@@ -223,17 +252,15 @@ def generate_frames():
                             if not mouth_open_detected:
                                 mouth_open_detected = True
                                 mouth_open_time = current_time
-                            else:
-                                if current_time - mouth_open_time < YAWN_CONFIRM_TIME:
-                                    mouth_open_time = current_time
-                        else:
-                            mouth_status = "NORMAL"
-
-                        if mouth_open_detected:
-                            if current_time - mouth_open_time >= YAWN_CONFIRM_TIME:
+                            elif current_time - mouth_open_time >= YAWN_CONFIRM_TIME:
                                 yawn_counter += 1
                                 mouth_status = "YAWNING"
                                 mouth_open_detected = False
+                                send_alert = True
+                                alert_triggered = True
+                        else:
+                            mouth_status = "NORMAL"
+                            mouth_open_detected = False
 
                     mp_drawing.draw_landmarks(
                         image=ai_frame,
@@ -302,6 +329,33 @@ def generate_frames():
                 if send_alert or alert_triggered:
                     cv2.putText(ai_frame, "SEND ALERT TO MANAGER", (20, 340),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
+
+                    if send_alert and current_driver_id:
+                        if drowsy_status == "HEAD DOWN ALERT":
+                            alert_type = "HEAD_DOWN"
+                            alert_level = "medium"
+                        elif drowsy_status == "DROWSY":
+                            alert_type = "DROWSY"
+                            alert_level = "high"
+                        elif drowsy_status == "TIRED":
+                            alert_type = "EYES_CLOSED"
+                            alert_level = "medium"
+                        elif mouth_status == "YAWNING":
+                            alert_type = "YAWNING"
+                            alert_level = "low"
+                        else:
+                            alert_type = "DROWSY"
+                            alert_level = "medium"
+
+                        process_violation(
+                            driver_id=current_driver_id,
+                            alert_type=alert_type,
+                            alert_level=alert_level,
+                            ear=ear,
+                            mar=mar,
+                            head_status=head_status,
+                            frame=original_frame,
+                        )
             else:
                 cv2.putText(ai_frame, "NO FACE DETECTED", (20, 80),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
@@ -322,7 +376,7 @@ def generate_frames():
             )
 
         except Exception as e:
-            print("Lỗi generate_frames:", e)
+            logger.error(f"Lỗi generate_frames: {e}")
             break
 @app.route("/")
 @app.route("/login")
@@ -332,29 +386,56 @@ def login():
 
 @app.route("/camera")
 def camera():
-    return render_template("camera.html")
+    drivers_list = get_all_drivers()
+    return render_template("camera.html", drivers=drivers_list)
 
 
 @app.route("/start_camera", methods=["POST"])
 def start_camera():
-    global camera_stream, camera_running
+    global camera_stream, camera_running, current_driver_id
+
+    driver_id = request.json.get("driver_id") if request.is_json else request.form.get("driver_id")
+
+    if not driver_id:
+        return jsonify({
+            "status": "error",
+            "message": "Vui long chon tai xe truoc khi bat camera",
+        }), 400
 
     if not camera_running:
-        camera_stream = cv2.VideoCapture(0)
-        camera_running = True
+        stream = cv2.VideoCapture(0)
+        if not stream.isOpened():
+            stream.release()
+            return jsonify({
+                "status": "error",
+                "message": "Khong the mo camera",
+            }), 503
 
-    return jsonify({"status": "started"})
+        camera_stream = stream
+        camera_running = True
+        current_driver_id = driver_id
+        reset_detection_state()
+    elif driver_id != current_driver_id:
+        return jsonify({
+            "status": "error",
+            "message": "Camera dang chay voi tai xe khac",
+        }), 409
+
+    return jsonify({"status": "started", "driver_id": current_driver_id})
 
 
 @app.route("/stop_camera", methods=["POST"])
 def stop_camera():
-    global camera_stream, camera_running
+    global camera_stream, camera_running, current_driver_id
 
     camera_running = False
 
     if camera_stream is not None:
         camera_stream.release()
         camera_stream = None
+
+    current_driver_id = None
+    reset_detection_state()
 
     return jsonify({"status": "stopped"})
 
@@ -403,7 +484,8 @@ def register():
 @app.route("/dashboard")
 def dashboard():
     stats = get_dashboard_stats()
-    return render_template("dashboard.html", stats=stats)
+    recent_alerts = get_all_alerts(limit=3)
+    return render_template("dashboard.html", stats=stats, recent_alerts=recent_alerts)
 
 
 @app.route("/drivers")

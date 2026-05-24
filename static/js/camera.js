@@ -1,17 +1,34 @@
 const cameraImg = document.querySelector(".camera-stream");
 
 function startCamera() {
+    const driverSelect = document.getElementById("driverSelect");
+    const driverId = driverSelect ? driverSelect.value : "";
+
+    if (!driverId) {
+        alert("Vui lòng chọn tài xế trước khi bật camera");
+        return;
+    }
+
     fetch("/start_camera", {
-        method: "POST"
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ driver_id: driverId })
     })
-    .then(response => response.json())
+    .then(async response => {
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.message || "Không thể bắt đầu camera");
+        }
+        return data;
+    })
     .then(data => {
         cameraImg.src = "/video_feed?t=" + new Date().getTime();
+        driverSelect.disabled = true;
         alert("Đã bắt đầu camera");
     })
     .catch(error => {
         console.error("Lỗi startCamera:", error);
-        alert("Không thể bắt đầu camera");
+        alert(error.message || "Không thể bắt đầu camera");
     });
 }
 
@@ -22,6 +39,8 @@ function stopCamera() {
     .then(response => response.json())
     .then(data => {
         cameraImg.src = "";
+        const driverSelect = document.getElementById("driverSelect");
+        if (driverSelect) driverSelect.disabled = false;
         alert("Đã dừng camera");
     })
     .catch(error => {

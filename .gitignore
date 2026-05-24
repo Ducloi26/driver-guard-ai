@@ -1,13 +1,43 @@
+# Virtual environments
 venv/
+venv312/
+.venv/
+env/
+
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
 
+# Database
 database/*.db
+*.db
 
+# Logs
+logs/
+*.log
+
+# Environment variables
 .env
+.env.*
 
+# IDE
 .idea/
 .vscode/
+*.swp
+*.swo
 
+# OS
 .DS_Store
 Thumbs.db
+desktop.ini
+
+# Model files (large binary)
+models/*.dat
+models/*.h5
+models/*.onnx
+models/*.pt
+models/*.pth
