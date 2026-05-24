@@ -133,8 +133,8 @@
                             <td>
                                 <div class="driver-info">
                                     <div class="driver-avatar">
-                                        {% if driver.avatar_path %}
-                                        📷
+                                        {% if driver.avatar_url %}
+                                        <img src="{{ driver.avatar_url }}" alt="{{ driver.full_name }}">
                                         {% else %}
                                         {{ (driver.full_name or 'TX')[:2] | upper }}
                                         {% endif %}

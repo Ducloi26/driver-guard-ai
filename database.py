@@ -250,6 +250,188 @@ def upload_driver_image(file_storage) -> tuple[bool, str | None, str]:
         return False, None, "Không thể upload ảnh tài xế"
 
 
+def download_driver_image_bytes(avatar_path: str) -> bytes | None:
+    """
+    Tải ảnh khuôn mặt tài xế từ Supabase Storage.
+
+    Hàm này phục vụ phần AI nhận diện khuôn mặt:
+      - drivers.avatar_path chỉ lưu đường dẫn trong bucket driver-images
+      - AI cần bytes ảnh thật để đọc bằng OpenCV/DeepFace
+      - Nếu tải lỗi thì trả về None để route hoặc script xử lý tiếp
+
+    Args:
+        avatar_path (str): đường dẫn ảnh trong bucket driver-images.
+
+    Returns:
+        bytes | None: nội dung file ảnh nếu tải thành công, None nếu lỗi.
+    """
+    if not avatar_path:
+        return None
+
+    try:
+        supabase = get_supabase_client()
+        return supabase.storage.from_("driver-images").download(avatar_path)
+
+    except Exception as e:
+        logger.error(f"download_driver_image_bytes({avatar_path}) lỗi: {e}")
+        return None
+
+
+def create_driver_avatar_url(avatar_path: str, expires_in: int = 3600) -> str | None:
+    """
+    Tạo signed URL để trình duyệt hiển thị ảnh tài xế.
+
+    Supabase Storage bucket driver-images đang để private để bảo vệ ảnh khuôn mặt.
+    Vì vậy avatar_path chỉ là đường dẫn nội bộ, browser không mở trực tiếp được.
+    Backend sẽ tạo signed URL có thời hạn rồi truyền sang template.
+
+    Args:
+        avatar_path (str): đường dẫn ảnh trong bucket driver-images.
+        expires_in (int): thời gian URL có hiệu lực, tính bằng giây.
+
+    Returns:
+        str | None: URL ảnh dùng được trên trình duyệt, hoặc None nếu lỗi.
+    """
+    if not avatar_path:
+        return None
+
+    try:
+        supabase = get_supabase_client()
+        response = supabase.storage.from_("driver-images").create_signed_url(
+            avatar_path,
+            expires_in
+        )
+
+        if isinstance(response, dict):
+            return response.get("signedURL") or response.get("signedUrl") or response.get("signed_url")
+
+        return getattr(response, "signed_url", None) or getattr(response, "signedURL", None)
+
+    except Exception as e:
+        logger.error(f"create_driver_avatar_url({avatar_path}) lỗi: {e}")
+        return None
+
+
+def attach_avatar_urls_to_drivers(drivers: list) -> list:
+    """
+    Gắn avatar_url vào từng tài xế để template hiển thị ảnh.
+
+    Hàm này chỉ phục vụ UI. Database vẫn chỉ lưu avatar_path để tránh lưu URL
+    hết hạn vào bảng drivers.
+    """
+    for driver in drivers or []:
+        driver["avatar_url"] = create_driver_avatar_url(driver.get("avatar_path"))
+
+    return drivers or []
+
+
+def get_drivers_for_face_encoding() -> list:
+    """
+    Lấy danh sách tài xế có ảnh đăng ký để tạo face_encoding.
+
+    Dùng cho bước build dữ liệu nhận diện:
+      ảnh trong Storage -> AI trích xuất embedding -> lưu vào drivers.face_encoding
+
+    Returns:
+        list[dict]: tài xế active/suspended có avatar_path.
+    """
+    try:
+        supabase = get_supabase_client()
+        company_id = get_default_company_id()
+
+        response = (
+            supabase
+            .table("drivers")
+            .select("id, full_name, driver_code, avatar_path, face_encoding, status")
+            .eq("company_id", company_id)
+            .neq("status", "inactive")
+            .not_.is_("avatar_path", "null")
+            .order("created_at", desc=True)
+            .execute()
+        )
+
+        return response.data or []
+
+    except Exception as e:
+        logger.error(f"get_drivers_for_face_encoding() lỗi: {e}")
+        return []
+
+
+def get_drivers_with_face_encoding() -> list:
+    """
+    Lấy danh sách tài xế đã có face_encoding để camera nhận diện.
+
+    Camera nên gọi hàm này một lần khi khởi động hoặc khi cần refresh dữ liệu.
+    Không nên query Supabase liên tục trong từng frame vì sẽ chậm và tốn request.
+
+    Returns:
+        list[dict]: mỗi phần tử có id, full_name, driver_code, face_encoding.
+    """
+    try:
+        supabase = get_supabase_client()
+        company_id = get_default_company_id()
+
+        response = (
+            supabase
+            .table("drivers")
+            .select("id, full_name, driver_code, face_encoding, status")
+            .eq("company_id", company_id)
+            .neq("status", "inactive")
+            .not_.is_("face_encoding", "null")
+            .order("created_at", desc=True)
+            .execute()
+        )
+
+        return response.data or []
+
+    except Exception as e:
+        logger.error(f"get_drivers_with_face_encoding() lỗi: {e}")
+        return []
+
+
+def update_driver_face_encoding(driver_id: str, face_encoding: list[float]) -> tuple[bool, str]:
+    """
+    Lưu vector khuôn mặt vào cột drivers.face_encoding.
+
+    Args:
+        driver_id (str): UUID tài xế cần cập nhật.
+        face_encoding (list[float]): vector embedding do model AI tạo ra.
+
+    Returns:
+        tuple[bool, str]: trạng thái và thông báo cho route/script gọi hàm.
+    """
+    if not driver_id:
+        return False, "Thiếu driver_id"
+
+    if not face_encoding:
+        return False, "face_encoding rỗng"
+
+    try:
+        supabase = get_supabase_client()
+        company_id = get_default_company_id()
+
+        response = (
+            supabase
+            .table("drivers")
+            .update({
+                "face_encoding": face_encoding,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            })
+            .eq("id", driver_id)
+            .eq("company_id", company_id)
+            .execute()
+        )
+
+        if response.data:
+            return True, "Cập nhật face_encoding thành công"
+
+        return False, "Không tìm thấy tài xế để cập nhật face_encoding"
+
+    except Exception as e:
+        logger.error(f"update_driver_face_encoding({driver_id}) lỗi: {e}")
+        return False, "Lỗi hệ thống khi cập nhật face_encoding"
+
+
 # ==============================================================
 # PHẦN 2: CRUD TÀI XẾ (DRIVERS)
 # ==============================================================
@@ -454,6 +636,54 @@ def add_driver(driver_data: dict) -> tuple[bool, str]:
             return False, "Dữ liệu bị trùng lặp, vui lòng kiểm tra lại"
 
         return False, "Lỗi hệ thống, vui lòng thử lại"
+
+
+def add_driver_and_get_id(driver_data: dict) -> tuple[bool, str, str | None]:
+    """
+    Thêm tài xế mới và trả về id vừa tạo.
+
+    Hàm này dùng cho màn hình thêm tài xế khi cần tạo tiếp ca làm việc
+    trong bảng shifts. Hàm add_driver() cũ vẫn được giữ để các chỗ đang gọi
+    không bị ảnh hưởng.
+    """
+    if not driver_data.get("full_name"):
+        return False, "Họ tên không được để trống", None
+
+    valid_statuses = ("active", "inactive", "suspended")
+    if driver_data.get("status") not in valid_statuses:
+        driver_data["status"] = "active"
+
+    try:
+        supabase = get_supabase_client()
+        insert_data = {
+            **driver_data,
+            "company_id": get_default_company_id(),
+        }
+
+        response = (
+            supabase
+            .table("drivers")
+            .insert(insert_data)
+            .execute()
+        )
+
+        if response.data:
+            return True, "Thêm tài xế thành công", response.data[0].get("id")
+
+        return False, "Không thể thêm tài xế, vui lòng thử lại", None
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"add_driver_and_get_id() lỗi: {error_msg}")
+
+        if "unique" in error_msg.lower() or "duplicate" in error_msg.lower():
+            if "driver_code" in error_msg:
+                return False, "Mã tài xế đã tồn tại trong hệ thống", None
+            if "license_number" in error_msg:
+                return False, "Số GPLX đã tồn tại trong hệ thống", None
+            return False, "Dữ liệu bị trùng lặp, vui lòng kiểm tra lại", None
+
+        return False, "Lỗi hệ thống, vui lòng thử lại", None
 
 
 def update_driver(driver_id: str, driver_data: dict) -> tuple[bool, str]:
@@ -784,6 +1014,41 @@ def add_shift(shift_data: dict) -> tuple[bool, str]:
     except Exception as e:
         logger.error(f"add_shift() lỗi: {e}")
         return False, "Lỗi hệ thống khi tạo ca làm việc"
+
+
+def get_current_shift_by_driver(driver_id: str) -> dict | None:
+    """
+    Lấy ca/xe mới nhất của một tài xế.
+
+    Phần nhận diện khuôn mặt chỉ trả về driver_id. Hàm này giúp app.py lấy thêm
+    biển số xe và ca làm việc để hiển thị trên màn Camera AI.
+    """
+    if not driver_id:
+        return None
+
+    try:
+        supabase = get_supabase_client()
+        company_id = get_default_company_id()
+
+        response = (
+            supabase
+            .table("shifts")
+            .select("id, shift_name, work_date, start_time, end_time, status, vehicles(plate_number, vehicle_type)")
+            .eq("company_id", company_id)
+            .eq("driver_id", driver_id)
+            .order("work_date", desc=True)
+            .limit(1)
+            .execute()
+        )
+
+        if response.data:
+            return response.data[0]
+
+        return None
+
+    except Exception as e:
+        logger.error(f"get_current_shift_by_driver({driver_id}) lỗi: {e}")
+        return None
 
 
 # ==============================================================
