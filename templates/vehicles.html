@@ -59,23 +59,23 @@
 
             <div class="vehicle-summary">
                 <div class="vehicle-card">
-                    <h3>18</h3>
+                    <h3>{{ vehicle_stats.total_vehicles }}</h3>
                     <p>Tổng số xe</p>
                 </div>
 
                 <div class="vehicle-card">
-                    <h3>16</h3>
+                    <h3>{{ vehicle_stats.active_vehicles }}</h3>
                     <p>Đang hoạt động</p>
                 </div>
 
                 <div class="vehicle-card">
-                    <h3>2</h3>
+                    <h3>{{ vehicle_stats.maintenance_vehicles }}</h3>
                     <p>Đang bảo trì</p>
                 </div>
 
                 <div class="vehicle-card">
-                    <h3>12</h3>
-                    <p>Camera online</p>
+                    <h3>{{ vehicle_stats.inactive_vehicles }}</h3>
+                    <p>Ngưng sử dụng</p>
                 </div>
             </div>
 
@@ -100,7 +100,7 @@
                 </div>
 
                 <div>
-                    <button class="btn-outline">+ Thêm xe</button>
+                    <a href="/add-vehicle" class="btn-outline" style="text-decoration:none;display:inline-block;">+ Thêm xe</a>
                 </div>
             </div>
 
@@ -120,95 +120,48 @@
                     </thead>
 
                     <tbody>
+                        {% for vehicle in vehicles %}
+                        {% set shift = vehicle.current_shift %}
+                        {% set driver = shift.drivers if shift and shift.drivers else none %}
                         <tr>
-                            <td><span class="vehicle-plate">51A-12345</span></td>
+                            <td><span class="vehicle-plate">{{ vehicle.plate_number }}</span></td>
                             <td>
-                                <div class="vehicle-type">Xe tải</div>
-                                <div class="vehicle-note">Tải trọng 5 tấn</div>
+                                <div class="vehicle-type">{{ vehicle.vehicle_type or '-' }}</div>
+                                <div class="vehicle-note">{{ vehicle.id }}</div>
                             </td>
-                            <td>Hyundai</td>
-                            <td>Nguyễn Văn A</td>
+                            <td>{{ vehicle.brand or '-' }}</td>
+                            <td>
+                                {% if driver %}
+                                    {{ driver.full_name }}
+                                    <div class="vehicle-note">{{ shift.shift_name or 'Ca làm việc' }}</div>
+                                {% else %}
+                                    Chưa gán
+                                {% endif %}
+                            </td>
                             <td><span class="badge badge-success">Online</span></td>
-                            <td><span class="badge badge-success">Hoạt động</span></td>
-                            <td>Đang chạy tuyến nội thành</td>
                             <td>
-                                <button class="btn-small btn-view">Xem</button>
-                                <button class="btn-small btn-edit">Sửa</button>
-                                <button class="btn-small btn-delete">Xóa</button>
+                                {% if vehicle.status == 'active' %}
+                                    <span class="badge badge-success">Hoạt động</span>
+                                {% elif vehicle.status == 'maintenance' %}
+                                    <span class="badge badge-warning">Bảo trì</span>
+                                {% else %}
+                                    <span class="badge badge-danger">Ngưng sử dụng</span>
+                                {% endif %}
+                            </td>
+                            <td>Dữ liệu từ Supabase</td>
+                            <td>
+                                <button class="btn-small btn-view" type="button">Xem</button>
+                                <button class="btn-small btn-edit" type="button">Sửa</button>
+                                <button class="btn-small btn-delete" type="button">Xóa</button>
                             </td>
                         </tr>
-
+                        {% else %}
                         <tr>
-                            <td><span class="vehicle-plate">51B-67890</span></td>
-                            <td>
-                                <div class="vehicle-type">Xe khách</div>
-                                <div class="vehicle-note">29 chỗ</div>
-                            </td>
-                            <td>Thaco</td>
-                            <td>Trần Văn B</td>
-                            <td><span class="badge badge-success">Online</span></td>
-                            <td><span class="badge badge-warning">Cảnh báo</span></td>
-                            <td>Tài xế có nhiều cảnh báo</td>
-                            <td>
-                                <button class="btn-small btn-view">Xem</button>
-                                <button class="btn-small btn-edit">Sửa</button>
-                                <button class="btn-small btn-delete">Xóa</button>
+                            <td colspan="8" style="text-align:center;padding:28px;">
+                                Chưa có xe trong hệ thống
                             </td>
                         </tr>
-
-                        <tr>
-                            <td><span class="vehicle-plate">60C-45678</span></td>
-                            <td>
-                                <div class="vehicle-type">Xe container</div>
-                                <div class="vehicle-note">40 feet</div>
-                            </td>
-                            <td>Hino</td>
-                            <td>Lê Hoàng C</td>
-                            <td><span class="badge badge-success">Online</span></td>
-                            <td><span class="badge badge-success">Hoạt động</span></td>
-                            <td>Ca đêm tuyến liên tỉnh</td>
-                            <td>
-                                <button class="btn-small btn-view">Xem</button>
-                                <button class="btn-small btn-edit">Sửa</button>
-                                <button class="btn-small btn-delete">Xóa</button>
-                            </td>
-                        </tr>
-
-                        <tr>
-                            <td><span class="vehicle-plate">29H-88999</span></td>
-                            <td>
-                                <div class="vehicle-type">Xe dịch vụ</div>
-                                <div class="vehicle-note">7 chỗ</div>
-                            </td>
-                            <td>Toyota</td>
-                            <td>Phạm Minh D</td>
-                            <td><span class="badge badge-danger">Offline</span></td>
-                            <td><span class="badge badge-danger">Nguy hiểm</span></td>
-                            <td>Cần kiểm tra camera</td>
-                            <td>
-                                <button class="btn-small btn-view">Xem</button>
-                                <button class="btn-small btn-edit">Sửa</button>
-                                <button class="btn-small btn-delete">Xóa</button>
-                            </td>
-                        </tr>
-
-                        <tr>
-                            <td><span class="vehicle-plate">51A-99100</span></td>
-                            <td>
-                                <div class="vehicle-type">Xe tải</div>
-                                <div class="vehicle-note">Tải trọng 2.5 tấn</div>
-                            </td>
-                            <td>Isuzu</td>
-                            <td>Hoàng Văn E</td>
-                            <td><span class="badge badge-warning">Offline</span></td>
-                            <td><span class="badge badge-warning">Bảo trì</span></td>
-                            <td>Đang bảo dưỡng định kỳ</td>
-                            <td>
-                                <button class="btn-small btn-view">Xem</button>
-                                <button class="btn-small btn-edit">Sửa</button>
-                                <button class="btn-small btn-delete">Xóa</button>
-                            </td>
-                        </tr>
+                        {% endfor %}
                     </tbody>
                 </table>
             </div>

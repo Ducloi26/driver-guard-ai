@@ -75,10 +75,10 @@
                         >
 
                         <div class="camera-overlay">
-                            <div class="ai-chip">Tài xế: Nguyễn Văn A</div>
-                            <div class="ai-chip">EAR: --</div>
-                            <div class="ai-chip">MAR: --</div>
-                            <div class="ai-chip">Trạng thái: Đang phân tích</div>
+                            <div class="ai-chip" id="cameraDriverChip">Tài xế: Đang chờ</div>
+                            <div class="ai-chip" id="cameraConfidenceChip">Độ khớp: --</div>
+                            <div class="ai-chip" id="cameraVehicleChip">Xe: --</div>
+                            <div class="ai-chip" id="cameraStatusChip">Trạng thái: Đang phân tích</div>
                         </div>
                     </div>
 
@@ -121,29 +121,29 @@
                 <div class="side-panel">
 
                     <div class="card driver-panel">
-                        <div class="driver-photo">NA</div>
-                        <h3>Nguyễn Văn A</h3>
-                        <p>Đã xác thực khuôn mặt - độ chính xác 92%</p>
+                        <div class="driver-photo" id="cameraDriverAvatar">--</div>
+                        <h3 id="cameraDriverName">Đang chờ nhận diện</h3>
+                        <p id="cameraDriverVerify">Camera chưa xác thực tài xế</p>
 
                         <div class="info-list">
                             <div class="info-row">
                                 <span>Xe phụ trách</span>
-                                <strong>51A-12345</strong>
+                                <strong id="cameraVehiclePlate">--</strong>
                             </div>
 
                             <div class="info-row">
                                 <span>Ca làm việc</span>
-                                <strong>07:00 - 12:00</strong>
+                                <strong id="cameraShiftInfo">--</strong>
                             </div>
 
                             <div class="info-row">
                                 <span>Số điện thoại</span>
-                                <strong>0901234567</strong>
+                                <strong id="cameraDriverPhone">--</strong>
                             </div>
 
                             <div class="info-row">
                                 <span>Trạng thái</span>
-                                <span class="badge badge-danger">Nguy hiểm</span>
+                                <span class="badge badge-warning" id="cameraRecognitionBadge">Đang chờ</span>
                             </div>
                         </div>
                     </div>

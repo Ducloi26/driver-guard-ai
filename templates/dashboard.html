@@ -65,28 +65,28 @@
 
                 <div class="metric-card success">
                     <div class="metric-title">Tổng số xe</div>
-                    <div class="metric-value">--</div>
-                    <div class="metric-sub">Chưa kết nối dữ liệu xe</div>
+                    <div class="metric-value">{{ stats.total_vehicles }}</div>
+                    <div class="metric-sub">Xe đang hoạt động</div>
                 </div>
 
                 <div class="metric-card danger">
                     <div class="metric-title">Cảnh báo hôm nay</div>
                     <div class="metric-value">{{ stats.total_alerts_today }}</div>
-                    <div class="metric-sub">{{ stats.high_alerts_today }} cảnh báo nguy hiểm</div>
+                    <div class="metric-sub">Theo ngày hiện tại</div>
                 </div>
             </div>
 
             <div class="metric-grid">
                 <div class="metric-card warning">
-                    <div class="metric-title">Cảnh báo nguy hiểm hôm nay</div>
+                    <div class="metric-title">Cảnh báo nguy hiểm</div>
                     <div class="metric-value">{{ stats.high_alerts_today }}</div>
-                    <div class="metric-sub">Cần kiểm tra ngay</div>
+                    <div class="metric-sub">Mức cao trong hôm nay</div>
                 </div>
 
                 <div class="metric-card blue">
                     <div class="metric-title">Ca đang hoạt động</div>
                     <div class="metric-value">{{ stats.active_shifts }}</div>
-                    <div class="metric-sub">Đang diễn ra</div>
+                    <div class="metric-sub">Ca đang diễn ra</div>
                 </div>
 
                 <div class="metric-card success">

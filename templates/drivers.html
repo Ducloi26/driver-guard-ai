@@ -127,11 +127,17 @@
 
                     <tbody>
                         {% for driver in drivers %}
+                        {% set shift = driver.current_shift %}
+                        {% set vehicle = shift.vehicles if shift and shift.vehicles else none %}
                         <tr>
                             <td>
                                 <div class="driver-info">
                                     <div class="driver-avatar">
+                                        {% if driver.avatar_url %}
+                                        <img src="{{ driver.avatar_url }}" alt="{{ driver.full_name }}">
+                                        {% else %}
                                         {{ (driver.full_name or 'TX')[:2] | upper }}
+                                        {% endif %}
                                     </div>
                                     <div>
                                         <div class="driver-name">{{ driver.full_name }}</div>
@@ -140,8 +146,15 @@
                                 </div>
                             </td>
                             <td>{{ driver.phone or '-' }}</td>
-                            <td><span class="plate">Chưa gán</span></td>
-                            <td>Chưa gán</td>
+                            <td><span class="plate">{{ vehicle.plate_number if vehicle else 'Chưa gán' }}</span></td>
+                            <td>
+                                {% if shift %}
+                                    {{ shift.shift_name or 'Ca làm việc' }}
+                                    <div class="driver-id">{{ shift.start_time or '--:--' }} - {{ shift.end_time or '--:--' }}</div>
+                                {% else %}
+                                    Chưa gán
+                                {% endif %}
+                            </td>
                             <td>
                                 {% if driver.status == 'active' %}
                                     <span class="badge badge-success">Hoạt động</span>

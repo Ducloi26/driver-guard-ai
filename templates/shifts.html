@@ -59,23 +59,23 @@
 
             <div class="shift-summary">
                 <div class="shift-card">
-                    <h3>8</h3>
+                    <h3>{{ shift_stats.total_shifts }}</h3>
                     <p>Tổng số ca</p>
                 </div>
 
                 <div class="shift-card">
-                    <h3>6</h3>
+                    <h3>{{ shift_stats.active_shifts }}</h3>
                     <p>Ca đang hoạt động</p>
                 </div>
 
                 <div class="shift-card">
-                    <h3>2</h3>
+                    <h3>{{ shift_stats.scheduled_shifts }}</h3>
                     <p>Ca sắp bắt đầu</p>
                 </div>
 
                 <div class="shift-card">
-                    <h3>1</h3>
-                    <p>Ca có cảnh báo</p>
+                    <h3>{{ shift_stats.completed_shifts }}</h3>
+                    <p>Ca đã kết thúc</p>
                 </div>
             </div>
 
@@ -99,116 +99,63 @@
                 </div>
 
                 <div>
-                    <button class="btn-outline">+ Tạo ca làm việc</button>
+                    <a href="/add-shift" class="btn-outline" style="text-decoration:none;display:inline-block;">+ Tạo ca làm việc</a>
                 </div>
             </div>
 
             <div class="shift-grid">
 
+                {% for shift in shifts[:3] %}
+                {% set driver_name = shift.drivers.full_name if shift.drivers else 'Chưa gán tài xế' %}
+                {% set plate_number = shift.vehicles.plate_number if shift.vehicles else 'Chưa gán xe' %}
+                {% set vehicle_type = shift.vehicles.vehicle_type if shift.vehicles else 'Xe' %}
+                <div class="shift-box {% if shift.status == 'scheduled' %}warning{% elif shift.status == 'completed' or shift.status == 'cancelled' %}danger{% endif %}">
+                    <div class="shift-top">
+                        <div>
+                            <div class="shift-title">{{ shift.shift_name or 'Ca làm việc' }}</div>
+                            <div class="shift-time">{{ shift.start_time or '--:--' }} - {{ shift.end_time or '--:--' }}</div>
+                        </div>
+                        {% if shift.status == 'active' %}
+                            <span class="badge badge-success">Đang chạy</span>
+                        {% elif shift.status == 'scheduled' %}
+                            <span class="badge badge-warning">Sắp bắt đầu</span>
+                        {% elif shift.status == 'completed' %}
+                            <span class="badge badge-success">Đã kết thúc</span>
+                        {% else %}
+                            <span class="badge badge-danger">Đã hủy</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="shift-info">
+                        <div class="shift-info-row">
+                            <span>Ngày làm</span>
+                            <strong>{{ shift.work_date or '-' }}</strong>
+                        </div>
+
+                        <div class="shift-info-row">
+                            <span>Số xe</span>
+                            <strong>{{ plate_number }}</strong>
+                        </div>
+
+                        <div class="shift-info-row">
+                            <span>Trạng thái</span>
+                            <strong>{{ shift.status }}</strong>
+                        </div>
+                    </div>
+
+                    <div class="shift-driver">
+                        <div class="shift-avatar">{{ driver_name[:2] | upper }}</div>
+                        <div>
+                            <div class="shift-driver-name">{{ driver_name }}</div>
+                            <div class="shift-driver-car">{{ vehicle_type or 'Xe' }} - {{ plate_number }}</div>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
                 <div class="shift-box">
-                    <div class="shift-top">
-                        <div>
-                            <div class="shift-title">Ca sáng</div>
-                            <div class="shift-time">07:00 - 12:00</div>
-                        </div>
-                        <span class="badge badge-success">Đang chạy</span>
-                    </div>
-
-                    <div class="shift-info">
-                        <div class="shift-info-row">
-                            <span>Tuyến đường</span>
-                            <strong>Nội thành TP.HCM</strong>
-                        </div>
-
-                        <div class="shift-info-row">
-                            <span>Số xe</span>
-                            <strong>51A-12345</strong>
-                        </div>
-
-                        <div class="shift-info-row">
-                            <span>Cảnh báo</span>
-                            <strong>2 lần</strong>
-                        </div>
-                    </div>
-
-                    <div class="shift-driver">
-                        <div class="shift-avatar">NA</div>
-                        <div>
-                            <div class="shift-driver-name">Nguyễn Văn A</div>
-                            <div class="shift-driver-car">Xe tải - 51A-12345</div>
-                        </div>
-                    </div>
+                    <div class="shift-title">Chưa có ca làm việc trong hệ thống</div>
                 </div>
-
-                <div class="shift-box warning">
-                    <div class="shift-top">
-                        <div>
-                            <div class="shift-title">Ca chiều</div>
-                            <div class="shift-time">13:00 - 18:00</div>
-                        </div>
-                        <span class="badge badge-warning">Cảnh báo</span>
-                    </div>
-
-                    <div class="shift-info">
-                        <div class="shift-info-row">
-                            <span>Tuyến đường</span>
-                            <strong>Quận 1 - Bình Dương</strong>
-                        </div>
-
-                        <div class="shift-info-row">
-                            <span>Số xe</span>
-                            <strong>51B-67890</strong>
-                        </div>
-
-                        <div class="shift-info-row">
-                            <span>Cảnh báo</span>
-                            <strong>7 lần</strong>
-                        </div>
-                    </div>
-
-                    <div class="shift-driver">
-                        <div class="shift-avatar">TB</div>
-                        <div>
-                            <div class="shift-driver-name">Trần Văn B</div>
-                            <div class="shift-driver-car">Xe khách - 51B-67890</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="shift-box danger">
-                    <div class="shift-top">
-                        <div>
-                            <div class="shift-title">Ca đêm</div>
-                            <div class="shift-time">22:00 - 06:00</div>
-                        </div>
-                        <span class="badge badge-danger">Nguy hiểm</span>
-                    </div>
-
-                    <div class="shift-info">
-                        <div class="shift-info-row">
-                            <span>Tuyến đường</span>
-                            <strong>TP.HCM - Đồng Nai</strong>
-                        </div>
-
-                        <div class="shift-info-row">
-                            <span>Số xe</span>
-                            <strong>60C-45678</strong>
-                        </div>
-
-                        <div class="shift-info-row">
-                            <span>Cảnh báo</span>
-                            <strong>4 lần</strong>
-                        </div>
-                    </div>
-
-                    <div class="shift-driver">
-                        <div class="shift-avatar">LC</div>
-                        <div>
-                            <div class="shift-driver-name">Lê Hoàng C</div>
-                            <div class="shift-driver-car">Container - 60C-45678</div>
-                        </div>
-                    </div>
-                </div>
+                {% endfor %}
 
             </div>
 
@@ -228,65 +175,40 @@
                     </thead>
 
                     <tbody>
+                        {% for shift in shifts %}
+                        {% set driver_name = shift.drivers.full_name if shift.drivers else 'Chưa gán tài xế' %}
+                        {% set plate_number = shift.vehicles.plate_number if shift.vehicles else 'Chưa gán xe' %}
                         <tr>
-                            <td>Ca sáng</td>
-                            <td>07:00 - 12:00</td>
-                            <td>Nội thành TP.HCM</td>
-                            <td>Nguyễn Văn A</td>
-                            <td>51A-12345</td>
-                            <td><span class="badge badge-success">Đang hoạt động</span></td>
-                            <td><span class="badge badge-warning">2 lần</span></td>
+                            <td>{{ shift.shift_name or 'Ca làm việc' }}</td>
+                            <td>{{ shift.start_time or '--:--' }} - {{ shift.end_time or '--:--' }}</td>
+                            <td>{{ shift.work_date or '-' }}</td>
+                            <td>{{ driver_name }}</td>
+                            <td>{{ plate_number }}</td>
                             <td>
-                                <button class="btn-small btn-view">Xem</button>
-                                <button class="btn-small btn-edit">Sửa</button>
-                                <button class="btn-small btn-delete">Xóa</button>
+                                {% if shift.status == 'active' %}
+                                    <span class="badge badge-success">Đang hoạt động</span>
+                                {% elif shift.status == 'scheduled' %}
+                                    <span class="badge badge-warning">Sắp bắt đầu</span>
+                                {% elif shift.status == 'completed' %}
+                                    <span class="badge badge-success">Đã kết thúc</span>
+                                {% else %}
+                                    <span class="badge badge-danger">Đã hủy</span>
+                                {% endif %}
+                            </td>
+                            <td><span class="badge badge-warning">0 lần</span></td>
+                            <td>
+                                <button class="btn-small btn-view" type="button">Xem</button>
+                                <button class="btn-small btn-edit" type="button">Sửa</button>
+                                <button class="btn-small btn-delete" type="button">Xóa</button>
                             </td>
                         </tr>
-
+                        {% else %}
                         <tr>
-                            <td>Ca chiều</td>
-                            <td>13:00 - 18:00</td>
-                            <td>Quận 1 - Bình Dương</td>
-                            <td>Trần Văn B</td>
-                            <td>51B-67890</td>
-                            <td><span class="badge badge-warning">Cảnh báo</span></td>
-                            <td><span class="badge badge-danger">7 lần</span></td>
-                            <td>
-                                <button class="btn-small btn-view">Xem</button>
-                                <button class="btn-small btn-edit">Sửa</button>
-                                <button class="btn-small btn-delete">Xóa</button>
+                            <td colspan="8" style="text-align:center;padding:28px;">
+                                Chưa có ca làm việc trong hệ thống
                             </td>
                         </tr>
-
-                        <tr>
-                            <td>Ca đêm</td>
-                            <td>22:00 - 06:00</td>
-                            <td>TP.HCM - Đồng Nai</td>
-                            <td>Lê Hoàng C</td>
-                            <td>60C-45678</td>
-                            <td><span class="badge badge-danger">Nguy hiểm</span></td>
-                            <td><span class="badge badge-danger">4 lần</span></td>
-                            <td>
-                                <button class="btn-small btn-view">Xem</button>
-                                <button class="btn-small btn-edit">Sửa</button>
-                                <button class="btn-small btn-delete">Xóa</button>
-                            </td>
-                        </tr>
-
-                        <tr>
-                            <td>Ca sáng</td>
-                            <td>07:00 - 12:00</td>
-                            <td>Sân bay - Trung tâm</td>
-                            <td>Phạm Minh D</td>
-                            <td>29H-88999</td>
-                            <td><span class="badge badge-success">Đang hoạt động</span></td>
-                            <td><span class="badge badge-warning">1 lần</span></td>
-                            <td>
-                                <button class="btn-small btn-view">Xem</button>
-                                <button class="btn-small btn-edit">Sửa</button>
-                                <button class="btn-small btn-delete">Xóa</button>
-                            </td>
-                        </tr>
+                        {% endfor %}
                     </tbody>
                 </table>
             </div>

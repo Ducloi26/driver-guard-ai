@@ -57,7 +57,7 @@
 
         <section class="content">
 
-            <div class="add-driver-layout">
+            <form class="add-driver-layout" method="POST" action="{{ url_for('add_driver') }}" enctype="multipart/form-data">
 
                 <div class="card upload-card">
                     <h3>Ảnh nhận diện</h3>
@@ -68,7 +68,10 @@
                         <span>JPG, PNG, JPEG</span>
                     </div>
 
-                    <button class="btn-main">Chọn ảnh</button>
+                    <label class="btn-main" style="display:block;text-align:center;cursor:pointer;">
+                        Chọn ảnh
+                        <input type="file" name="driver_image" accept="image/jpeg,image/png,image/webp" style="display:none;">
+                    </label>
 
                     <div class="note-box" style="margin-top:16px;">
                         <strong>Yêu cầu ảnh:</strong>
@@ -81,7 +84,7 @@
                     </div>
                 </div>
 
-                <form class="card form-card" method="POST" action="{{ url_for('add_driver') }}">
+                <div class="card form-card">
                     <h2>Thông tin tài xế</h2>
                     <p>Thông tin này dùng để quản lý, gán xe và lưu lịch sử cảnh báo.</p>
 
@@ -117,32 +120,40 @@
                         </div>
 
                         <div class="form-group">
-                            <label>Biển số xe phụ trách</label>
-                            <select>
-                                <option>51A-12345</option>
-                                <option>51B-67890</option>
-                                <option>60C-45678</option>
-                                <option>29H-88999</option>
+                            <label>Xe phụ trách</label>
+                            <select name="vehicle_id">
+                                <option value="">Chưa gán xe</option>
+                                {% for vehicle in vehicles or [] %}
+                                <option value="{{ vehicle.id }}" {% if form_data and form_data.vehicle_id == vehicle.id %}selected{% endif %}>
+                                    {{ vehicle.plate_number }}{% if vehicle.vehicle_type %} - {{ vehicle.vehicle_type }}{% endif %}
+                                </option>
+                                {% endfor %}
                             </select>
                         </div>
 
                         <div class="form-group">
-                            <label>Loại xe</label>
-                            <select>
-                                <option>Xe tải</option>
-                                <option>Xe khách</option>
-                                <option>Xe container</option>
-                                <option>Xe dịch vụ</option>
-                            </select>
+                            <label>Ngày làm việc</label>
+                            <input type="date" name="work_date" value="{{ form_data.work_date if form_data else '' }}">
                         </div>
 
                         <div class="form-group">
                             <label>Ca làm việc</label>
-                            <select>
-                                <option>Ca sáng: 07:00 - 12:00</option>
-                                <option>Ca chiều: 13:00 - 18:00</option>
-                                <option>Ca đêm: 22:00 - 06:00</option>
+                            <select name="shift_name">
+                                <option value="">Chưa gán ca</option>
+                                <option value="Ca sáng" {% if form_data and form_data.shift_name == 'Ca sáng' %}selected{% endif %}>Ca sáng</option>
+                                <option value="Ca chiều" {% if form_data and form_data.shift_name == 'Ca chiều' %}selected{% endif %}>Ca chiều</option>
+                                <option value="Ca đêm" {% if form_data and form_data.shift_name == 'Ca đêm' %}selected{% endif %}>Ca đêm</option>
                             </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Giờ bắt đầu</label>
+                            <input type="time" name="start_time" value="{{ form_data.start_time if form_data else '' }}">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Giờ kết thúc</label>
+                            <input type="time" name="end_time" value="{{ form_data.end_time if form_data else '' }}">
                         </div>
 
                         <div class="form-group">
@@ -169,9 +180,9 @@
                         <a href="/drivers" class="btn-cancel">Hủy</a>
                         <button type="submit" class="btn-main btn-save">Lưu tài xế</button>
                     </div>
-                </form>
+                </div>
 
-            </div>
+            </form>
 
         </section>
 

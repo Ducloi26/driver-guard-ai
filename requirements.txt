@@ -8,3 +8,5 @@ requests
 supabase
 python-dotenv
 werkzeug
+deepface
+tf-keras

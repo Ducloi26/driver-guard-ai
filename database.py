@@ -8,8 +8,10 @@ import os                          # Đọc biến môi trường (.env)
 import logging                     # Ghi log lỗi ra terminal thay vì print
 from datetime import datetime, timezone, timedelta  # Xử lý thời gian
 from zoneinfo import ZoneInfo      # Xử lý múi giờ (Python 3.9+, không cần cài thêm)
+from uuid import uuid4             # Tạo tên file ảnh duy nhất khi upload Storage
 from dotenv import load_dotenv     # Nạp file .env vào os.environ
 from supabase import create_client, Client  # SDK chính để kết nối Supabase
+from werkzeug.utils import secure_filename  # Làm sạch tên file upload
 
 # Nạp .env ngay khi file này được import
 # Nếu không có dòng này, os.getenv(...) sẽ trả về None
@@ -140,9 +142,294 @@ def clean_form_data(form) -> dict:
         "license_number": to_none_if_empty(form.get("license_number")),
         "address":        to_none_if_empty(form.get("address")),
         "driver_code":    to_none_if_empty(form.get("driver_code")),
+        "avatar_path":     to_none_if_empty(form.get("avatar_path")),
         # status từ <select>, default 'active' nếu không có
         "status":         form.get("status", "active"),
     }
+
+
+def clean_vehicle_form_data(form) -> dict:
+    """
+    Làm sạch dữ liệu từ form thêm xe trước khi insert vào bảng vehicles.
+
+    Bảng vehicles hiện lưu dữ liệu cốt lõi của xe:
+      - plate_number: biển số xe
+      - vehicle_type: loại xe
+      - brand: hãng xe
+      - status: trạng thái vận hành
+    """
+
+    def to_none_if_empty(value):
+        if value is None:
+            return None
+        stripped = value.strip()
+        return stripped if stripped else None
+
+    return {
+        "plate_number": to_none_if_empty(form.get("plate_number")),
+        "vehicle_type": to_none_if_empty(form.get("vehicle_type")),
+        "brand": to_none_if_empty(form.get("brand")),
+        "status": to_none_if_empty(form.get("status")) or "active",
+    }
+
+
+def clean_shift_form_data(form) -> dict:
+    """
+    Làm sạch dữ liệu từ form tạo ca làm việc.
+
+    Bảng shifts dùng để gán tài xế với xe theo ngày và khung giờ.
+    Đây là bảng tạo quan hệ driver_id ↔ vehicle_id cho các trang
+    drivers, vehicles và camera sau này.
+    """
+
+    def to_none_if_empty(value):
+        if value is None:
+            return None
+        stripped = value.strip()
+        return stripped if stripped else None
+
+    return {
+        "driver_id": to_none_if_empty(form.get("driver_id")),
+        "vehicle_id": to_none_if_empty(form.get("vehicle_id")),
+        "shift_name": to_none_if_empty(form.get("shift_name")),
+        "work_date": to_none_if_empty(form.get("work_date")),
+        "start_time": to_none_if_empty(form.get("start_time")),
+        "end_time": to_none_if_empty(form.get("end_time")),
+        "status": to_none_if_empty(form.get("status")) or "scheduled",
+    }
+
+
+def upload_driver_image(file_storage) -> tuple[bool, str | None, str]:
+    """
+    Upload ảnh khuôn mặt tài xế lên Supabase Storage bucket driver-images.
+
+    Args:
+        file_storage: object từ request.files["driver_image"] của Flask.
+
+    Returns:
+        tuple:
+          - success: upload thành công hay không
+          - path: đường dẫn ảnh trong bucket để lưu vào drivers.avatar_path
+          - message: thông báo lỗi/thành công
+    """
+    if not file_storage or not file_storage.filename:
+        return True, None, "Không có ảnh được chọn"
+
+    allowed_extensions = {"jpg", "jpeg", "png", "webp"}
+    original_name = secure_filename(file_storage.filename)
+    extension = original_name.rsplit(".", 1)[-1].lower() if "." in original_name else ""
+
+    if extension not in allowed_extensions:
+        return False, None, "Ảnh tài xế phải là JPG, PNG hoặc WEBP"
+
+    try:
+        supabase = get_supabase_client()
+        company_id = get_default_company_id()
+
+        file_bytes = file_storage.read()
+        if not file_bytes:
+            return False, None, "File ảnh rỗng"
+
+        # Giới hạn 2MB để khớp cấu hình bucket Supabase Free/demo.
+        if len(file_bytes) > 2 * 1024 * 1024:
+            return False, None, "Ảnh tài xế không được vượt quá 2MB"
+
+        storage_path = f"{company_id}/drivers/{uuid4()}.{extension}"
+        content_type = file_storage.mimetype or f"image/{extension}"
+
+        supabase.storage.from_("driver-images").upload(
+            storage_path,
+            file_bytes,
+            {"content-type": content_type}
+        )
+
+        return True, storage_path, "Upload ảnh tài xế thành công"
+
+    except Exception as e:
+        logger.error(f"upload_driver_image() lỗi: {e}")
+        return False, None, "Không thể upload ảnh tài xế"
+
+
+def download_driver_image_bytes(avatar_path: str) -> bytes | None:
+    """
+    Tải ảnh khuôn mặt tài xế từ Supabase Storage.
+
+    Hàm này phục vụ phần AI nhận diện khuôn mặt:
+      - drivers.avatar_path chỉ lưu đường dẫn trong bucket driver-images
+      - AI cần bytes ảnh thật để đọc bằng OpenCV/DeepFace
+      - Nếu tải lỗi thì trả về None để route hoặc script xử lý tiếp
+
+    Args:
+        avatar_path (str): đường dẫn ảnh trong bucket driver-images.
+
+    Returns:
+        bytes | None: nội dung file ảnh nếu tải thành công, None nếu lỗi.
+    """
+    if not avatar_path:
+        return None
+
+    try:
+        supabase = get_supabase_client()
+        return supabase.storage.from_("driver-images").download(avatar_path)
+
+    except Exception as e:
+        logger.error(f"download_driver_image_bytes({avatar_path}) lỗi: {e}")
+        return None
+
+
+def create_driver_avatar_url(avatar_path: str, expires_in: int = 3600) -> str | None:
+    """
+    Tạo signed URL để trình duyệt hiển thị ảnh tài xế.
+
+    Supabase Storage bucket driver-images đang để private để bảo vệ ảnh khuôn mặt.
+    Vì vậy avatar_path chỉ là đường dẫn nội bộ, browser không mở trực tiếp được.
+    Backend sẽ tạo signed URL có thời hạn rồi truyền sang template.
+
+    Args:
+        avatar_path (str): đường dẫn ảnh trong bucket driver-images.
+        expires_in (int): thời gian URL có hiệu lực, tính bằng giây.
+
+    Returns:
+        str | None: URL ảnh dùng được trên trình duyệt, hoặc None nếu lỗi.
+    """
+    if not avatar_path:
+        return None
+
+    try:
+        supabase = get_supabase_client()
+        response = supabase.storage.from_("driver-images").create_signed_url(
+            avatar_path,
+            expires_in
+        )
+
+        if isinstance(response, dict):
+            return response.get("signedURL") or response.get("signedUrl") or response.get("signed_url")
+
+        return getattr(response, "signed_url", None) or getattr(response, "signedURL", None)
+
+    except Exception as e:
+        logger.error(f"create_driver_avatar_url({avatar_path}) lỗi: {e}")
+        return None
+
+
+def attach_avatar_urls_to_drivers(drivers: list) -> list:
+    """
+    Gắn avatar_url vào từng tài xế để template hiển thị ảnh.
+
+    Hàm này chỉ phục vụ UI. Database vẫn chỉ lưu avatar_path để tránh lưu URL
+    hết hạn vào bảng drivers.
+    """
+    for driver in drivers or []:
+        driver["avatar_url"] = create_driver_avatar_url(driver.get("avatar_path"))
+
+    return drivers or []
+
+
+def get_drivers_for_face_encoding() -> list:
+    """
+    Lấy danh sách tài xế có ảnh đăng ký để tạo face_encoding.
+
+    Dùng cho bước build dữ liệu nhận diện:
+      ảnh trong Storage -> AI trích xuất embedding -> lưu vào drivers.face_encoding
+
+    Returns:
+        list[dict]: tài xế active/suspended có avatar_path.
+    """
+    try:
+        supabase = get_supabase_client()
+        company_id = get_default_company_id()
+
+        response = (
+            supabase
+            .table("drivers")
+            .select("id, full_name, driver_code, avatar_path, face_encoding, status")
+            .eq("company_id", company_id)
+            .neq("status", "inactive")
+            .not_.is_("avatar_path", "null")
+            .order("created_at", desc=True)
+            .execute()
+        )
+
+        return response.data or []
+
+    except Exception as e:
+        logger.error(f"get_drivers_for_face_encoding() lỗi: {e}")
+        return []
+
+
+def get_drivers_with_face_encoding() -> list:
+    """
+    Lấy danh sách tài xế đã có face_encoding để camera nhận diện.
+
+    Camera nên gọi hàm này một lần khi khởi động hoặc khi cần refresh dữ liệu.
+    Không nên query Supabase liên tục trong từng frame vì sẽ chậm và tốn request.
+
+    Returns:
+        list[dict]: mỗi phần tử có id, full_name, driver_code, face_encoding.
+    """
+    try:
+        supabase = get_supabase_client()
+        company_id = get_default_company_id()
+
+        response = (
+            supabase
+            .table("drivers")
+            .select("id, full_name, driver_code, face_encoding, status")
+            .eq("company_id", company_id)
+            .neq("status", "inactive")
+            .not_.is_("face_encoding", "null")
+            .order("created_at", desc=True)
+            .execute()
+        )
+
+        return response.data or []
+
+    except Exception as e:
+        logger.error(f"get_drivers_with_face_encoding() lỗi: {e}")
+        return []
+
+
+def update_driver_face_encoding(driver_id: str, face_encoding: list[float]) -> tuple[bool, str]:
+    """
+    Lưu vector khuôn mặt vào cột drivers.face_encoding.
+
+    Args:
+        driver_id (str): UUID tài xế cần cập nhật.
+        face_encoding (list[float]): vector embedding do model AI tạo ra.
+
+    Returns:
+        tuple[bool, str]: trạng thái và thông báo cho route/script gọi hàm.
+    """
+    if not driver_id:
+        return False, "Thiếu driver_id"
+
+    if not face_encoding:
+        return False, "face_encoding rỗng"
+
+    try:
+        supabase = get_supabase_client()
+        company_id = get_default_company_id()
+
+        response = (
+            supabase
+            .table("drivers")
+            .update({
+                "face_encoding": face_encoding,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            })
+            .eq("id", driver_id)
+            .eq("company_id", company_id)
+            .execute()
+        )
+
+        if response.data:
+            return True, "Cập nhật face_encoding thành công"
+
+        return False, "Không tìm thấy tài xế để cập nhật face_encoding"
+
+    except Exception as e:
+        logger.error(f"update_driver_face_encoding({driver_id}) lỗi: {e}")
+        return False, "Lỗi hệ thống khi cập nhật face_encoding"
 
 
 # ==============================================================
@@ -193,6 +480,50 @@ def get_all_drivers() -> list:
         # In lỗi ra terminal để debug, trả về [] để UI vẫn chạy
         logger.error(f"get_all_drivers() lỗi: {e}")
         return []
+
+
+def attach_current_shift_to_drivers(drivers: list) -> list:
+    """
+    Gắn thông tin xe/ca mới nhất vào từng tài xế.
+
+    Bảng drivers chỉ lưu hồ sơ tài xế. Quan hệ "tài xế đang chạy xe nào"
+    nằm ở bảng shifts thông qua driver_id và vehicle_id. Hàm này giúp
+    trang /drivers hiển thị biển số xe và ca làm việc thay vì "Chưa gán".
+    """
+    if not drivers:
+        return []
+
+    try:
+        supabase = get_supabase_client()
+        company_id = get_default_company_id()
+        driver_ids = [driver["id"] for driver in drivers if driver.get("id")]
+
+        response = (
+            supabase
+            .table("shifts")
+            .select("driver_id, shift_name, work_date, start_time, end_time, status, vehicles(plate_number, vehicle_type)")
+            .eq("company_id", company_id)
+            .in_("driver_id", driver_ids)
+            .order("work_date", desc=True)
+            .execute()
+        )
+
+        latest_by_driver = {}
+        for shift in response.data or []:
+            driver_id = shift.get("driver_id")
+            if driver_id and driver_id not in latest_by_driver:
+                latest_by_driver[driver_id] = shift
+
+        for driver in drivers:
+            driver["current_shift"] = latest_by_driver.get(driver.get("id"))
+
+        return drivers
+
+    except Exception as e:
+        logger.error(f"attach_current_shift_to_drivers() lỗi: {e}")
+        for driver in drivers:
+            driver["current_shift"] = None
+        return drivers
 
 
 def get_driver_by_id(driver_id: str) -> dict | None:
@@ -307,6 +638,54 @@ def add_driver(driver_data: dict) -> tuple[bool, str]:
         return False, "Lỗi hệ thống, vui lòng thử lại"
 
 
+def add_driver_and_get_id(driver_data: dict) -> tuple[bool, str, str | None]:
+    """
+    Thêm tài xế mới và trả về id vừa tạo.
+
+    Hàm này dùng cho màn hình thêm tài xế khi cần tạo tiếp ca làm việc
+    trong bảng shifts. Hàm add_driver() cũ vẫn được giữ để các chỗ đang gọi
+    không bị ảnh hưởng.
+    """
+    if not driver_data.get("full_name"):
+        return False, "Họ tên không được để trống", None
+
+    valid_statuses = ("active", "inactive", "suspended")
+    if driver_data.get("status") not in valid_statuses:
+        driver_data["status"] = "active"
+
+    try:
+        supabase = get_supabase_client()
+        insert_data = {
+            **driver_data,
+            "company_id": get_default_company_id(),
+        }
+
+        response = (
+            supabase
+            .table("drivers")
+            .insert(insert_data)
+            .execute()
+        )
+
+        if response.data:
+            return True, "Thêm tài xế thành công", response.data[0].get("id")
+
+        return False, "Không thể thêm tài xế, vui lòng thử lại", None
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"add_driver_and_get_id() lỗi: {error_msg}")
+
+        if "unique" in error_msg.lower() or "duplicate" in error_msg.lower():
+            if "driver_code" in error_msg:
+                return False, "Mã tài xế đã tồn tại trong hệ thống", None
+            if "license_number" in error_msg:
+                return False, "Số GPLX đã tồn tại trong hệ thống", None
+            return False, "Dữ liệu bị trùng lặp, vui lòng kiểm tra lại", None
+
+        return False, "Lỗi hệ thống, vui lòng thử lại", None
+
+
 def update_driver(driver_id: str, driver_data: dict) -> tuple[bool, str]:
     """
     Cập nhật thông tin tài xế.
@@ -407,6 +786,269 @@ def delete_driver(driver_id: str) -> tuple[bool, str]:
     except Exception as e:
         logger.error(f"delete_driver({driver_id}) lỗi: {e}")
         return False, "Lỗi hệ thống khi xóa"
+
+
+# ==============================================================
+# PHẦN 2.5: VEHICLES
+# ==============================================================
+
+def get_all_vehicles() -> list:
+    """
+    Lấy danh sách xe của công ty.
+
+    Returns:
+        list[dict]: danh sách xe, trả về [] nếu lỗi.
+    """
+    try:
+        supabase = get_supabase_client()
+        company_id = get_default_company_id()
+
+        response = (
+            supabase
+            .table("vehicles")
+            .select("*")
+            .eq("company_id", company_id)
+            .order("created_at", desc=True)
+            .execute()
+        )
+
+        return response.data
+
+    except Exception as e:
+        logger.error(f"get_all_vehicles() lỗi: {e}")
+        return []
+
+
+def attach_current_shift_to_vehicles(vehicles: list) -> list:
+    """
+    Gắn thông tin tài xế/ca mới nhất vào từng xe.
+
+    Bảng vehicles chỉ lưu thông tin xe. Quan hệ "xe này đang do ai phụ trách"
+    nằm ở bảng shifts. Hàm này giúp trang /vehicles hiển thị tài xế phụ trách.
+    """
+    if not vehicles:
+        return []
+
+    try:
+        supabase = get_supabase_client()
+        company_id = get_default_company_id()
+        vehicle_ids = [vehicle["id"] for vehicle in vehicles if vehicle.get("id")]
+
+        response = (
+            supabase
+            .table("shifts")
+            .select("vehicle_id, shift_name, work_date, start_time, end_time, status, drivers(full_name)")
+            .eq("company_id", company_id)
+            .in_("vehicle_id", vehicle_ids)
+            .order("work_date", desc=True)
+            .execute()
+        )
+
+        latest_by_vehicle = {}
+        for shift in response.data or []:
+            vehicle_id = shift.get("vehicle_id")
+            if vehicle_id and vehicle_id not in latest_by_vehicle:
+                latest_by_vehicle[vehicle_id] = shift
+
+        for vehicle in vehicles:
+            vehicle["current_shift"] = latest_by_vehicle.get(vehicle.get("id"))
+
+        return vehicles
+
+    except Exception as e:
+        logger.error(f"attach_current_shift_to_vehicles() lỗi: {e}")
+        for vehicle in vehicles:
+            vehicle["current_shift"] = None
+        return vehicles
+
+
+def get_vehicle_stats(vehicles: list | None = None) -> dict:
+    """
+    Tính số liệu tóm tắt xe từ danh sách đã load.
+    """
+    vehicles = vehicles or get_all_vehicles()
+
+    return {
+        "total_vehicles": len(vehicles),
+        "active_vehicles": len([v for v in vehicles if v.get("status") == "active"]),
+        "maintenance_vehicles": len([v for v in vehicles if v.get("status") == "maintenance"]),
+        "inactive_vehicles": len([v for v in vehicles if v.get("status") == "inactive"]),
+    }
+
+
+def add_vehicle(vehicle_data: dict) -> tuple[bool, str]:
+    """
+    Thêm xe mới vào bảng vehicles.
+
+    Route Flask sẽ gọi hàm này khi người dùng submit form /add-vehicle.
+    Hàm trả về (success, message) để UI biết nên redirect hay hiện lỗi.
+    """
+    if not vehicle_data.get("plate_number"):
+        return False, "Biển số xe không được để trống"
+
+    valid_statuses = ("active", "maintenance", "inactive")
+    if vehicle_data.get("status") not in valid_statuses:
+        vehicle_data["status"] = "active"
+
+    try:
+        supabase = get_supabase_client()
+
+        insert_data = {
+            **vehicle_data,
+            "company_id": get_default_company_id(),
+        }
+
+        response = (
+            supabase
+            .table("vehicles")
+            .insert(insert_data)
+            .execute()
+        )
+
+        if response.data:
+            return True, "Thêm xe thành công"
+
+        return False, "Không thể thêm xe, vui lòng thử lại"
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"add_vehicle() lỗi: {error_msg}")
+
+        if "unique" in error_msg.lower() or "duplicate" in error_msg.lower():
+            return False, "Biển số xe đã tồn tại trong hệ thống"
+
+        return False, "Lỗi hệ thống khi thêm xe"
+
+
+# ==============================================================
+# PHẦN 2.6: SHIFTS
+# ==============================================================
+
+def get_all_shifts() -> list:
+    """
+    Lấy danh sách ca làm việc của công ty.
+
+    Hàm này cố gắng join thêm:
+      - drivers(full_name): để biết tài xế nào phụ trách ca
+      - vehicles(plate_number, vehicle_type): để biết xe/loại xe
+
+    Returns:
+        list[dict]: danh sách ca làm việc, trả về [] nếu lỗi.
+    """
+    try:
+        supabase = get_supabase_client()
+        company_id = get_default_company_id()
+
+        response = (
+            supabase
+            .table("shifts")
+            .select("*, drivers(full_name), vehicles(plate_number, vehicle_type)")
+            .eq("company_id", company_id)
+            .order("work_date", desc=True)
+            .execute()
+        )
+
+        return response.data
+
+    except Exception as e:
+        logger.error(f"get_all_shifts() lỗi: {e}")
+        return []
+
+
+def get_shift_stats(shifts: list | None = None) -> dict:
+    """
+    Tính số liệu tóm tắt ca làm việc từ danh sách đã load.
+
+    Dùng cách tính trên Python để tránh query Supabase nhiều lần
+    khi route /shifts đã có sẵn danh sách ca.
+    """
+    shifts = shifts or get_all_shifts()
+
+    return {
+        "total_shifts": len(shifts),
+        "active_shifts": len([s for s in shifts if s.get("status") == "active"]),
+        "scheduled_shifts": len([s for s in shifts if s.get("status") == "scheduled"]),
+        "completed_shifts": len([s for s in shifts if s.get("status") == "completed"]),
+    }
+
+
+def add_shift(shift_data: dict) -> tuple[bool, str]:
+    """
+    Thêm ca làm việc mới vào bảng shifts.
+
+    Ca làm việc là nơi gán tài xế với xe:
+      - driver_id: tài xế phụ trách
+      - vehicle_id: xe được giao
+      - work_date/start_time/end_time: thời gian làm việc
+    """
+    if not shift_data.get("driver_id"):
+        return False, "Vui lòng chọn tài xế"
+
+    if not shift_data.get("vehicle_id"):
+        return False, "Vui lòng chọn xe"
+
+    valid_statuses = ("scheduled", "active", "completed", "cancelled")
+    if shift_data.get("status") not in valid_statuses:
+        shift_data["status"] = "scheduled"
+
+    try:
+        supabase = get_supabase_client()
+
+        insert_data = {
+            **shift_data,
+            "company_id": get_default_company_id(),
+        }
+
+        response = (
+            supabase
+            .table("shifts")
+            .insert(insert_data)
+            .execute()
+        )
+
+        if response.data:
+            return True, "Tạo ca làm việc thành công"
+
+        return False, "Không thể tạo ca làm việc, vui lòng thử lại"
+
+    except Exception as e:
+        logger.error(f"add_shift() lỗi: {e}")
+        return False, "Lỗi hệ thống khi tạo ca làm việc"
+
+
+def get_current_shift_by_driver(driver_id: str) -> dict | None:
+    """
+    Lấy ca/xe mới nhất của một tài xế.
+
+    Phần nhận diện khuôn mặt chỉ trả về driver_id. Hàm này giúp app.py lấy thêm
+    biển số xe và ca làm việc để hiển thị trên màn Camera AI.
+    """
+    if not driver_id:
+        return None
+
+    try:
+        supabase = get_supabase_client()
+        company_id = get_default_company_id()
+
+        response = (
+            supabase
+            .table("shifts")
+            .select("id, shift_name, work_date, start_time, end_time, status, vehicles(plate_number, vehicle_type)")
+            .eq("company_id", company_id)
+            .eq("driver_id", driver_id)
+            .order("work_date", desc=True)
+            .limit(1)
+            .execute()
+        )
+
+        if response.data:
+            return response.data[0]
+
+        return None
+
+    except Exception as e:
+        logger.error(f"get_current_shift_by_driver({driver_id}) lỗi: {e}")
+        return None
 
 
 # ==============================================================
@@ -579,6 +1221,7 @@ def get_dashboard_stats() -> dict:
     Returns:
         dict: {
             "total_drivers": int,       # Tổng tài xế đang hoạt động
+            "total_vehicles": int,      # Tổng xe đang hoạt động
             "total_alerts_today": int,  # Tổng cảnh báo hôm nay (giờ VN)
             "high_alerts_today": int,   # Cảnh báo mức cao hôm nay (giờ VN)
             "active_shifts": int,       # Ca làm đang diễn ra
@@ -588,6 +1231,7 @@ def get_dashboard_stats() -> dict:
     # Giá trị mặc định, dùng nếu query lỗi
     stats = {
         "total_drivers": 0,
+        "total_vehicles": 0,
         "total_alerts_today": 0,
         "high_alerts_today": 0,
         "active_shifts": 0,
@@ -620,9 +1264,19 @@ def get_dashboard_stats() -> dict:
         )
         stats["total_drivers"] = r1.count or 0
 
-        # --- Query 2: Đếm alert hôm nay (giờ VN) ---
-        # Dùng >= today_start và < tomorrow_start để lấy đúng ngày hôm nay
+        # --- Query 2: Đếm xe active ---
         r2 = (
+            supabase.table("vehicles")
+            .select("id", count="exact")
+            .eq("company_id", company_id)
+            .eq("status", "active")
+            .execute()
+        )
+        stats["total_vehicles"] = r2.count or 0
+
+        # --- Query 3: Đếm alert hôm nay (giờ VN) ---
+        # Dùng >= today_start và < tomorrow_start để lấy đúng ngày hôm nay
+        r3 = (
             supabase.table("alerts")
             .select("id", count="exact")
             .eq("company_id", company_id)
@@ -630,10 +1284,10 @@ def get_dashboard_stats() -> dict:
             .lt("alert_time", tomorrow_start_utc)    # <  00:00:00 ngày mai (VN)
             .execute()
         )
-        stats["total_alerts_today"] = r2.count or 0
+        stats["total_alerts_today"] = r3.count or 0
 
-        # --- Query 3: Đếm alert HIGH hôm nay (giờ VN) ---
-        r3 = (
+        # --- Query 4: Đếm alert HIGH hôm nay (giờ VN) ---
+        r4 = (
             supabase.table("alerts")
             .select("id", count="exact")
             .eq("company_id", company_id)
@@ -642,17 +1296,17 @@ def get_dashboard_stats() -> dict:
             .lt("alert_time", tomorrow_start_utc)
             .execute()
         )
-        stats["high_alerts_today"] = r3.count or 0
+        stats["high_alerts_today"] = r4.count or 0
 
-        # --- Query 4: Đếm ca đang chạy ---
-        r4 = (
+        # --- Query 5: Đếm ca đang chạy ---
+        r5 = (
             supabase.table("shifts")
             .select("id", count="exact")
             .eq("company_id", company_id)
             .eq("status", "active")           # Ca đang diễn ra
             .execute()
         )
-        stats["active_shifts"] = r4.count or 0
+        stats["active_shifts"] = r5.count or 0
 
     except Exception as e:
         logger.error(f"get_dashboard_stats() lỗi: {e}")

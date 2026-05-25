@@ -1,10 +1,6 @@
 # Virtual environments
 venv/
-venv312/
 .venv/
-env/
-
-# Python
 __pycache__/
 *.pyc
 *.pyo

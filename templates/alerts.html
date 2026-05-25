@@ -59,23 +59,23 @@
 
             <div class="alert-summary">
                 <div class="alert-card">
-                    <h3>{{ alerts|length }}</h3>
+                    <h3>{{ alerts | length }}</h3>
                     <p>Tổng cảnh báo</p>
                 </div>
 
                 <div class="alert-card">
-                    <h3>{{ alerts|selectattr('alert_level', 'equalto', 'high')|list|length + alerts|selectattr('alert_level', 'equalto', 'medium')|list|length }}</h3>
-                    <p>Cần chú ý</p>
-                </div>
-
-                <div class="alert-card">
-                    <h3>{{ alerts|selectattr('alert_level', 'equalto', 'high')|list|length }}</h3>
+                    <h3>{{ alerts | selectattr('alert_level', 'equalto', 'high') | list | length }}</h3>
                     <p>Nguy hiểm cao</p>
                 </div>
 
                 <div class="alert-card">
-                    <h3>{{ alerts|selectattr('alert_level', 'equalto', 'low')|list|length }}</h3>
-                    <p>Mức thấp</p>
+                    <h3>{{ alerts | selectattr('sent_to_manager', 'equalto', true) | list | length }}</h3>
+                    <p>Đã gửi quản lý</p>
+                </div>
+
+                <div class="alert-card">
+                    <h3>{{ alerts | selectattr('sent_to_manager', 'equalto', false) | list | length }}</h3>
+                    <p>Chưa gửi</p>
                 </div>
             </div>
 
@@ -100,8 +100,8 @@
 
                     <select>
                         <option>Tất cả trạng thái</option>
-                        <option>Đã xử lý</option>
-                        <option>Chưa xử lý</option>
+                        <option>Đã gửi quản lý</option>
+                        <option>Chưa gửi</option>
                     </select>
 
                 </div>
@@ -114,23 +114,26 @@
 
             <div class="alert-grid">
 
-                {% for alert in alerts[:6] %}
+                {% for alert in alerts[:2] %}
+                {% set driver_name = alert.drivers.full_name if alert.drivers else 'Không xác định' %}
+                {% set plate_number = alert.vehicles.plate_number if alert.vehicles else 'Chưa gán xe' %}
+                {% set alert_label = {
+                    'EYES_CLOSED': 'NHẮM MẮT',
+                    'YAWNING': 'NGÁP',
+                    'HEAD_DOWN': 'GỤC ĐẦU',
+                    'DROWSY': 'NGỦ GẬT',
+                    'UNKNOWN_DRIVER': 'KHÔNG XÁC ĐỊNH'
+                }.get(alert.alert_type, alert.alert_type) %}
                 <div class="alert-item">
 
                     <div class="alert-image">
 
                         <div class="alert-live">
-                            {% if alert.alert_type == 'DROWSY' %}⚠️ NGỦ GẬT
-                            {% elif alert.alert_type == 'EYES_CLOSED' %}😴 NHẮM MẮT
-                            {% elif alert.alert_type == 'YAWNING' %}😮 NGÁP
-                            {% elif alert.alert_type == 'HEAD_DOWN' %}⬇️ GỤC ĐẦU
-                            {% elif alert.alert_type == 'UNKNOWN_DRIVER' %}❓ KHÔNG XÁC ĐỊNH
-                            {% else %}⚠️ {{ alert.alert_type }}
-                            {% endif %}
+                            ⚠️ {{ alert_label }}
                         </div>
 
                         <div class="alert-time">
-                            {{ alert.alert_time[11:19] if alert.alert_time else '--:--:--' }}
+                            {{ alert.alert_time[:16].replace('T', ' ') if alert.alert_time else '-' }}
                         </div>
 
                         👤
@@ -141,33 +144,31 @@
 
                         <div class="alert-top">
                             <div class="alert-title">
-                                {% if alert.alert_level == 'high' %}Cảnh báo nguy hiểm
-                                {% elif alert.alert_level == 'medium' %}Cảnh báo trung bình
-                                {% else %}Cảnh báo nhẹ
-                                {% endif %}
+                                {{ alert.alert_message or 'Cảnh báo AI' }}
                             </div>
 
-                            <span class="badge {% if alert.alert_level == 'high' %}badge-danger{% elif alert.alert_level == 'medium' %}badge-warning{% else %}badge-success{% endif %}">
-                                {% if alert.alert_level == 'high' %}Cao
-                                {% elif alert.alert_level == 'medium' %}Trung bình
-                                {% else %}Thấp
-                                {% endif %}
-                            </span>
+                            {% if alert.alert_level == 'high' %}
+                            <span class="badge badge-danger">Cao</span>
+                            {% elif alert.alert_level == 'medium' %}
+                            <span class="badge badge-warning">Trung bình</span>
+                            {% else %}
+                            <span class="badge badge-success">Thấp</span>
+                            {% endif %}
                         </div>
 
                         <div class="alert-driver">
 
                             <div class="alert-avatar">
-                                {{ (alert.drivers.full_name or 'N/A')[:2] | upper if alert.drivers else 'NA' }}
+                                {{ driver_name[:2] | upper }}
                             </div>
 
                             <div>
                                 <div class="alert-driver-name">
-                                    {{ alert.drivers.full_name if alert.drivers else 'Không xác định' }}
+                                    {{ driver_name }}
                                 </div>
 
                                 <div class="alert-driver-car">
-                                    {{ alert.vehicles.plate_number if alert.vehicles else 'Chưa gán xe' }}
+                                    {{ plate_number }}
                                 </div>
                             </div>
 
@@ -177,36 +178,52 @@
 
                             <div class="alert-info-box">
                                 <span>EAR</span>
-                                <strong>{{ '%.2f'|format(alert.ear_value) if alert.ear_value else '--' }}</strong>
+                                <strong>{{ alert.ear_value if alert.ear_value is not none else '-' }}</strong>
                             </div>
 
                             <div class="alert-info-box">
                                 <span>MAR</span>
-                                <strong>{{ '%.2f'|format(alert.mar_value) if alert.mar_value else '--' }}</strong>
+                                <strong>{{ alert.mar_value if alert.mar_value is not none else '-' }}</strong>
                             </div>
 
                             <div class="alert-info-box">
                                 <span>Đầu</span>
-                                <strong>{{ alert.head_status or '--' }}</strong>
+                                <strong>{{ alert.head_status or '-' }}</strong>
                             </div>
 
                             <div class="alert-info-box">
-                                <span>Mức độ</span>
-                                <strong>{{ alert.alert_level | upper }}</strong>
+                                <span>Gửi QL</span>
+                                <strong>{{ 'Rồi' if alert.sent_to_manager else 'Chưa' }}</strong>
                             </div>
+
+                        </div>
+
+                        <div class="alert-actions-buttons">
+
+                            <button class="btn-alert btn-view" type="button">
+                                Xem
+                            </button>
+
+                            <button class="btn-alert btn-process" type="button">
+                                Đánh dấu
+                            </button>
+
+                            <button class="btn-alert btn-danger" type="button">
+                                Gửi quản lý
+                            </button>
 
                         </div>
 
                     </div>
 
                 </div>
-                {% endfor %}
-
-                {% if not alerts %}
-                <div class="alert-item" style="text-align:center; padding:40px;">
-                    <p>Chưa có cảnh báo nào trong hệ thống.</p>
+                {% else %}
+                <div class="alert-item">
+                    <div class="alert-content">
+                        <div class="alert-title">Chưa có cảnh báo trong hệ thống</div>
+                    </div>
                 </div>
-                {% endif %}
+                {% endfor %}
 
             </div>
 
@@ -228,49 +245,50 @@
                     </thead>
 
                     <tbody>
-
                         {% for alert in alerts %}
+                        {% set driver_name = alert.drivers.full_name if alert.drivers else 'Không xác định' %}
+                        {% set alert_label = {
+                            'EYES_CLOSED': 'Nhắm mắt lâu',
+                            'YAWNING': 'Ngáp liên tục',
+                            'HEAD_DOWN': 'Gục đầu',
+                            'DROWSY': 'Ngủ gật',
+                            'UNKNOWN_DRIVER': 'Tài xế không xác định'
+                        }.get(alert.alert_type, alert.alert_type) %}
                         <tr>
-                            <td>{{ (alert.alert_time[11:16] ~ ' - ' ~ alert.alert_time[8:10] ~ '/' ~ alert.alert_time[5:7]) if alert.alert_time else '--:-- - --/--' }}</td>
-                            <td>{{ alert.drivers.full_name if alert.drivers else 'Không xác định' }}</td>
+                            <td>{{ alert.alert_time[:16].replace('T', ' ') if alert.alert_time else '-' }}</td>
+                            <td>{{ driver_name }}</td>
+                            <td>{{ alert_label }}</td>
+                            <td>{{ alert.ear_value if alert.ear_value is not none else '-' }}</td>
+                            <td>{{ alert.mar_value if alert.mar_value is not none else '-' }}</td>
                             <td>
-                                {% if alert.alert_type == 'DROWSY' %}Ngủ gật
-                                {% elif alert.alert_type == 'EYES_CLOSED' %}Nhắm mắt lâu
-                                {% elif alert.alert_type == 'YAWNING' %}Ngáp liên tục
-                                {% elif alert.alert_type == 'HEAD_DOWN' %}Gục đầu
-                                {% elif alert.alert_type == 'UNKNOWN_DRIVER' %}Không xác định
-                                {% else %}{{ alert.alert_type }}
+                                {% if alert.alert_level == 'high' %}
+                                <span class="badge badge-danger">Nguy hiểm</span>
+                                {% elif alert.alert_level == 'medium' %}
+                                <span class="badge badge-warning">Cảnh báo</span>
+                                {% else %}
+                                <span class="badge badge-success">Thấp</span>
                                 {% endif %}
                             </td>
-                            <td>{{ '%.2f'|format(alert.ear_value) if alert.ear_value else '--' }}</td>
-                            <td>{{ '%.2f'|format(alert.mar_value) if alert.mar_value else '--' }}</td>
                             <td>
-                                <span class="badge {% if alert.alert_level == 'high' %}badge-danger{% elif alert.alert_level == 'medium' %}badge-warning{% else %}badge-success{% endif %}">
-                                    {% if alert.alert_level == 'high' %}Nguy hiểm
-                                    {% elif alert.alert_level == 'medium' %}Cảnh báo
-                                    {% else %}Thấp
-                                    {% endif %}
-                                </span>
+                                {% if alert.sent_to_manager %}
+                                <span class="badge badge-success">Đã gửi quản lý</span>
+                                {% else %}
+                                <span class="badge badge-warning">Chưa gửi</span>
+                                {% endif %}
                             </td>
                             <td>
-                                <span class="badge badge-warning">
-                                    Chưa xử lý
-                                </span>
-                            </td>
-                            <td>
-                                <button class="btn-alert btn-view">
+                                <button class="btn-alert btn-view" type="button">
                                     Xem
                                 </button>
                             </td>
                         </tr>
-                        {% endfor %}
-
-                        {% if not alerts %}
+                        {% else %}
                         <tr>
-                            <td colspan="8" style="text-align:center; padding:20px;">Chưa có cảnh báo nào.</td>
+                            <td colspan="8" style="text-align:center;padding:28px;">
+                                Chưa có cảnh báo trong hệ thống
+                            </td>
                         </tr>
-                        {% endif %}
-
+                        {% endfor %}
                     </tbody>
 
                 </table>
@@ -294,13 +312,9 @@
         </div>
 
         <h2>Đăng xuất?</h2>
-
-        <p>
-            Bạn có chắc muốn đăng xuất khỏi hệ thống DriverGuard AI?
-        </p>
+        <p>Bạn có chắc muốn đăng xuất khỏi hệ thống DriverGuard AI?</p>
 
         <div class="logout-actions">
-
             <button
                 class="btn-logout-cancel"
                 onclick="closeLogoutModal()"
@@ -314,7 +328,6 @@
             >
                 Đăng xuất
             </a>
-
         </div>
 
     </div>

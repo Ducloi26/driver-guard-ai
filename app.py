@@ -1,18 +1,37 @@
 from flask import Flask, render_template, Response, jsonify, request, redirect, url_for, flash
 import cv2
 import os
+
+os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
+
 import mediapipe as mp
 import time
+import threading
+import unicodedata
 from datetime import datetime
 from database import (
     clean_form_data,
+    clean_vehicle_form_data,
+    clean_shift_form_data,
+    upload_driver_image,
     get_all_drivers,
-    add_driver as add_driver_record,
+    attach_current_shift_to_drivers,
+    attach_avatar_urls_to_drivers,
+    add_driver_and_get_id,
+    get_all_vehicles,
+    attach_current_shift_to_vehicles,
+    get_vehicle_stats,
+    add_vehicle as add_vehicle_record,
+    get_all_shifts,
+    get_shift_stats,
+    add_shift as add_shift_record,
     get_all_alerts,
     get_dashboard_stats,
+    get_drivers_with_face_encoding,
+    get_current_shift_by_driver,
 )
-from utils.alert_manager import process_violation
-from utils.logger import setup_logger
+from models.face_recognition_model import recognize_driver_from_frame
+
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "driver-guard-ai-dev-secret")
 logger = setup_logger(__name__)
@@ -20,7 +39,24 @@ logger = setup_logger(__name__)
 camera_stream = None
 camera_running = False
 last_frame = None
-current_driver_id = None
+known_face_drivers = []
+face_recognition_frame_counter = 0
+FACE_RECOGNITION_THRESHOLD = 0.72
+RECOGNITION_CONFIRM_FRAMES = 3
+UNKNOWN_CONFIRM_FRAMES = 5
+FACE_RECOGNITION_INTERVAL_SECONDS = 1.5
+pending_recognition_key = None
+pending_recognition_count = 0
+recognition_worker_thread = None
+recognition_worker_running = False
+latest_recognition_frame = None
+latest_recognition_frame_lock = threading.Lock()
+last_recognition_result = {
+    "status": "NOT_READY",
+    "driver": None,
+    "similarity": 0.0,
+    "shift": None,
+}
 mp_face_mesh = mp.solutions.face_mesh
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
@@ -109,21 +145,272 @@ head_down_detected = False
 alert_triggered = False
 
 
-def reset_detection_state():
-    global closed_counter, blink_counter, tired_event_counter, blink_start_time
-    global mouth_open_detected, mouth_open_time, yawn_counter
-    global head_down_start_time, head_down_detected, alert_triggered
+def refresh_known_face_drivers():
+    """
+    Load danh sách tài xế đã có face_encoding vào RAM.
 
-    closed_counter = 0
-    blink_counter = 0
-    tired_event_counter = 0
-    blink_start_time = time.time()
-    mouth_open_detected = False
-    mouth_open_time = 0
-    yawn_counter = 0
-    head_down_start_time = 0
-    head_down_detected = False
-    alert_triggered = False
+    Camera không nên query Supabase trong từng frame. Hàm này được gọi khi
+    bắt đầu camera để nhận diện nhanh hơn và giảm request lên cloud.
+    """
+    global known_face_drivers
+    known_face_drivers = get_drivers_with_face_encoding()
+    return known_face_drivers
+
+
+def get_recognition_key(result: dict) -> str:
+    """
+    Tạo key ổn định cho một kết quả nhận diện.
+
+    Dùng để đếm số lần liên tiếp camera nhận ra cùng một tài xế. Nếu chỉ dựa
+    vào từng frame riêng lẻ, UI sẽ dễ nhảy giữa RECOGNIZED/UNKNOWN khi tài xế
+    quay đầu hoặc ánh sáng thay đổi.
+    """
+    driver = result.get("driver")
+    if result.get("status") == "RECOGNIZED" and driver:
+        return f"driver:{driver.get('id')}"
+
+    return result.get("status") or "NOT_READY"
+
+
+def stabilize_recognition(raw_result: dict) -> dict:
+    """
+    Làm mượt kết quả nhận diện qua nhiều lần đọc liên tiếp.
+
+    Quy tắc:
+      - Cùng một tài xế phải xuất hiện nhiều lần liên tiếp mới được xác nhận.
+      - UNKNOWN/NO_FACE cũng phải lặp lại nhiều lần mới xóa trạng thái cũ.
+      - Nhờ vậy panel không bị nhảy loạn khi tài xế quay mặt hoặc chớp sáng.
+    """
+    global pending_recognition_key, pending_recognition_count, last_recognition_result
+
+    current_key = get_recognition_key(raw_result)
+
+    if current_key == pending_recognition_key:
+        pending_recognition_count += 1
+    else:
+        pending_recognition_key = current_key
+        pending_recognition_count = 1
+
+    if raw_result.get("status") == "RECOGNIZED":
+        if pending_recognition_count >= RECOGNITION_CONFIRM_FRAMES:
+            last_recognition_result = raw_result
+        return last_recognition_result
+
+    if raw_result.get("status") in ("UNKNOWN_DRIVER", "NO_FACE"):
+        if pending_recognition_count >= UNKNOWN_CONFIRM_FRAMES:
+            last_recognition_result = raw_result
+        return last_recognition_result
+
+    last_recognition_result = raw_result
+    return last_recognition_result
+
+
+def resize_frame_for_recognition(frame):
+    """
+    Giảm kích thước frame trước khi đưa vào DeepFace.
+
+    DeepFace chạy nặng hơn MediaPipe. Resize frame giúp nhận diện nhanh hơn,
+    trong khi vẫn đủ rõ để detect khuôn mặt ở webcam laptop.
+    """
+    if frame is None:
+        return None
+
+    height, width = frame.shape[:2]
+    max_width = 640
+
+    if width <= max_width:
+        return frame.copy()
+
+    scale = max_width / width
+    new_size = (max_width, int(height * scale))
+    return cv2.resize(frame, new_size)
+
+
+def update_latest_recognition_frame(frame):
+    """
+    Lưu frame mới nhất cho thread nhận diện nền.
+
+    Video stream không gọi DeepFace trực tiếp nữa, chỉ đưa frame mới nhất vào
+    biến dùng chung. Thread nền sẽ tự lấy frame này để nhận diện định kỳ.
+    """
+    global latest_recognition_frame
+
+    prepared_frame = resize_frame_for_recognition(frame)
+    if prepared_frame is None:
+        return
+
+    with latest_recognition_frame_lock:
+        latest_recognition_frame = prepared_frame
+
+
+def get_latest_recognition_frame():
+    """
+    Lấy bản copy frame mới nhất để thread nền xử lý an toàn.
+    """
+    with latest_recognition_frame_lock:
+        if latest_recognition_frame is None:
+            return None
+        return latest_recognition_frame.copy()
+
+
+def recognition_worker_loop():
+    """
+    Thread nền nhận diện tài xế liên tục nhưng không chặn video stream.
+
+    Nếu tài xế đổi người, worker vẫn phát hiện ở lần quét kế tiếp. Khoảng quét
+    hiện tại là FACE_RECOGNITION_INTERVAL_SECONDS để cân bằng giữa mượt và realtime.
+    """
+    global recognition_worker_running
+
+    while recognition_worker_running:
+        try:
+            frame_for_recognition = get_latest_recognition_frame()
+
+            if known_face_drivers and frame_for_recognition is not None:
+                raw_recognition = recognize_driver_from_frame(
+                    frame_for_recognition,
+                    known_face_drivers,
+                    threshold=FACE_RECOGNITION_THRESHOLD
+                )
+
+                if raw_recognition.get("driver"):
+                    raw_recognition["shift"] = get_current_shift_by_driver(
+                        raw_recognition["driver"].get("id")
+                    )
+                else:
+                    raw_recognition["shift"] = None
+
+                stabilize_recognition(raw_recognition)
+
+        except Exception as e:
+            print("Lỗi recognition_worker_loop:", e)
+
+        time.sleep(FACE_RECOGNITION_INTERVAL_SECONDS)
+
+
+def start_recognition_worker():
+    """
+    Khởi động thread nhận diện nền nếu chưa chạy.
+    """
+    global recognition_worker_thread, recognition_worker_running
+
+    if recognition_worker_thread is not None and recognition_worker_thread.is_alive():
+        return
+
+    recognition_worker_running = True
+    recognition_worker_thread = threading.Thread(
+        target=recognition_worker_loop,
+        daemon=True
+    )
+    recognition_worker_thread.start()
+
+
+def stop_recognition_worker():
+    """
+    Dừng thread nhận diện nền.
+    """
+    global recognition_worker_running
+    recognition_worker_running = False
+
+
+def format_recognition_text(result: dict) -> tuple[str, str, str]:
+    """
+    Chuyển kết quả nhận diện thành text ngắn để vẽ lên frame camera.
+
+    Returns:
+        tuple: (driver_text, vehicle_text, shift_text)
+    """
+    status = result.get("status")
+    driver = result.get("driver")
+    similarity = result.get("similarity", 0.0)
+    shift = result.get("shift")
+
+    if status == "RECOGNIZED" and driver:
+        driver_text = f"DRIVER: {driver.get('full_name', 'Unknown')} ({similarity * 100:.1f}%)"
+        vehicle = shift.get("vehicles") if shift else None
+        vehicle_text = f"VEHICLE: {vehicle.get('plate_number') if vehicle else 'Not assigned'}"
+        shift_text = f"SHIFT: {shift.get('shift_name') if shift else 'Not assigned'}"
+        return driver_text, vehicle_text, shift_text
+
+    if status == "UNKNOWN_DRIVER":
+        return f"DRIVER: UNKNOWN ({similarity * 100:.1f}%)", "VEHICLE: --", "SHIFT: --"
+
+    if status == "NO_FACE":
+        return "DRIVER: NO FACE", "VEHICLE: --", "SHIFT: --"
+
+    return "DRIVER: NOT READY", "VEHICLE: --", "SHIFT: --"
+
+
+def build_camera_status_payload() -> dict:
+    """
+    Tạo JSON trạng thái camera cho UI bên phải.
+
+    Hàm này đọc last_recognition_result đang được cập nhật trong generate_frames().
+    Frontend gọi /camera_status định kỳ để panel Camera AI đổi theo tài xế thật.
+    """
+    status = last_recognition_result.get("status")
+    driver = last_recognition_result.get("driver")
+    similarity = last_recognition_result.get("similarity", 0.0)
+    shift = last_recognition_result.get("shift")
+    vehicle = shift.get("vehicles") if shift else None
+
+    if status == "RECOGNIZED" and driver:
+        start_time = shift.get("start_time") if shift else None
+        end_time = shift.get("end_time") if shift else None
+        shift_time = "--"
+        if start_time or end_time:
+            shift_time = f"{start_time or '--:--'} - {end_time or '--:--'}"
+
+        return {
+            "status": "RECOGNIZED",
+            "driver_name": driver.get("full_name") or "Không xác định",
+            "driver_code": driver.get("driver_code"),
+            "phone": driver.get("phone") or "--",
+            "confidence": round(similarity * 100, 1),
+            "vehicle_plate": vehicle.get("plate_number") if vehicle else "Chưa gán",
+            "shift_name": shift.get("shift_name") if shift else "Chưa gán",
+            "shift_time": shift_time,
+            "known_faces": len(known_face_drivers),
+        }
+
+    if status == "UNKNOWN_DRIVER":
+        return {
+            "status": "UNKNOWN_DRIVER",
+            "driver_name": "Không xác định",
+            "driver_code": None,
+            "phone": "--",
+            "confidence": round(similarity * 100, 1),
+            "vehicle_plate": "--",
+            "shift_name": "--",
+            "shift_time": "--",
+            "known_faces": len(known_face_drivers),
+        }
+
+    return {
+        "status": status or "NOT_READY",
+        "driver_name": "Đang chờ nhận diện",
+        "driver_code": None,
+        "phone": "--",
+        "confidence": 0.0,
+        "vehicle_plate": "--",
+        "shift_name": "--",
+        "shift_time": "--",
+        "known_faces": len(known_face_drivers),
+    }
+
+
+def to_camera_text(value) -> str:
+    """
+    Chuyển text tiếng Việt sang ASCII trước khi vẽ bằng cv2.putText.
+
+    OpenCV Hershey font không hỗ trợ Unicode, nên nếu vẽ trực tiếp
+    "Nguyễn Đức Khang" sẽ bị thành "Nguy???". Dữ liệu gốc vẫn giữ tiếng Việt,
+    chỉ phần chữ trên frame camera được đổi thành không dấu.
+    """
+    text = str(value).replace("Đ", "D").replace("đ", "d")
+    normalized = unicodedata.normalize("NFKD", text)
+    ascii_text = normalized.encode("ascii", "ignore").decode("ascii")
+    return ascii_text
 
 
 def generate_frames():
@@ -131,7 +418,8 @@ def generate_frames():
     global closed_counter, blink_counter, tired_event_counter, blink_start_time
     global mouth_open_detected, mouth_open_time, yawn_counter
     global head_down_start_time, head_down_detected
-    global alert_triggered, current_driver_id
+    global alert_triggered
+    global face_recognition_frame_counter, last_recognition_result
 
     while camera_running:
         if camera_stream is None or not camera_stream.isOpened():
@@ -147,6 +435,10 @@ def generate_frames():
 
             original_frame = frame.copy()
             ai_frame = frame.copy()
+
+            # Chỉ cập nhật frame mới nhất cho thread nhận diện nền.
+            # DeepFace không chạy trực tiếp trong vòng lặp video để tránh lag.
+            update_latest_recognition_frame(frame)
 
             rgb_frame = cv2.cvtColor(ai_frame, cv2.COLOR_BGR2RGB)
             results = face_mesh.process(rgb_frame)
@@ -287,6 +579,14 @@ def generate_frames():
             cv2.putText(ai_frame, "FACE MESH AI", (20, 35),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
 
+            driver_text, vehicle_text, shift_text = format_recognition_text(last_recognition_result)
+            cv2.putText(original_frame, to_camera_text(driver_text), (20, 70),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 255, 0), 2)
+            cv2.putText(original_frame, to_camera_text(vehicle_text), (20, 100),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 255, 255), 2)
+            cv2.putText(original_frame, to_camera_text(shift_text), (20, 130),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 0), 2)
+
             if ear is not None:
                 cv2.putText(ai_frame, f"L-EAR: {left_ear:.2f}", (20, 70),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
@@ -392,36 +692,30 @@ def camera():
 
 @app.route("/start_camera", methods=["POST"])
 def start_camera():
-    global camera_stream, camera_running, current_driver_id
-
-    driver_id = request.json.get("driver_id") if request.is_json else request.form.get("driver_id")
-
-    if not driver_id:
-        return jsonify({
-            "status": "error",
-            "message": "Vui long chon tai xe truoc khi bat camera",
-        }), 400
+    global camera_stream, camera_running, face_recognition_frame_counter, last_recognition_result
+    global pending_recognition_key, pending_recognition_count
+    global latest_recognition_frame
 
     if not camera_running:
-        stream = cv2.VideoCapture(0)
-        if not stream.isOpened():
-            stream.release()
-            return jsonify({
-                "status": "error",
-                "message": "Khong the mo camera",
-            }), 503
-
-        camera_stream = stream
+        refresh_known_face_drivers()
+        face_recognition_frame_counter = 0
+        pending_recognition_key = None
+        pending_recognition_count = 0
+        latest_recognition_frame = None
+        last_recognition_result = {
+            "status": "NOT_READY" if known_face_drivers else "NO_REGISTERED_FACE",
+            "driver": None,
+            "similarity": 0.0,
+            "shift": None,
+        }
+        camera_stream = cv2.VideoCapture(0)
         camera_running = True
-        current_driver_id = driver_id
-        reset_detection_state()
-    elif driver_id != current_driver_id:
-        return jsonify({
-            "status": "error",
-            "message": "Camera dang chay voi tai xe khac",
-        }), 409
+        start_recognition_worker()
 
-    return jsonify({"status": "started", "driver_id": current_driver_id})
+    return jsonify({
+        "status": "started",
+        "known_faces": len(known_face_drivers),
+    })
 
 
 @app.route("/stop_camera", methods=["POST"])
@@ -429,6 +723,7 @@ def stop_camera():
     global camera_stream, camera_running, current_driver_id
 
     camera_running = False
+    stop_recognition_worker()
 
     if camera_stream is not None:
         camera_stream.release()
@@ -438,6 +733,11 @@ def stop_camera():
     reset_detection_state()
 
     return jsonify({"status": "stopped"})
+
+
+@app.route("/camera_status")
+def camera_status():
+    return jsonify(build_camera_status_payload())
 
 
 @app.route("/video_feed")
@@ -491,17 +791,68 @@ def dashboard():
 @app.route("/drivers")
 def drivers():
     drivers_list = get_all_drivers()
+    drivers_list = attach_current_shift_to_drivers(drivers_list)
+    drivers_list = attach_avatar_urls_to_drivers(drivers_list)
     return render_template("drivers.html", drivers=drivers_list)
 
 
 @app.route("/vehicles")
 def vehicles():
-    return render_template("vehicles.html")
+    vehicles_list = get_all_vehicles()
+    vehicles_list = attach_current_shift_to_vehicles(vehicles_list)
+    vehicle_stats = get_vehicle_stats(vehicles_list)
+    return render_template("vehicles.html", vehicles=vehicles_list, vehicle_stats=vehicle_stats)
+
+
+@app.route("/add-vehicle", methods=["GET", "POST"])
+def add_vehicle():
+    if request.method == "POST":
+        form_data = clean_vehicle_form_data(request.form)
+        success, message = add_vehicle_record(form_data)
+
+        if success:
+            flash(message, "success")
+            return redirect(url_for("vehicles"))
+
+        flash(message, "error")
+        return render_template("add_vehicle.html", form_data=form_data)
+
+    return render_template("add_vehicle.html")
 
 
 @app.route("/shifts")
 def shifts():
-    return render_template("shifts.html")
+    shifts_list = get_all_shifts()
+    shift_stats = get_shift_stats(shifts_list)
+    return render_template("shifts.html", shifts=shifts_list, shift_stats=shift_stats)
+
+
+@app.route("/add-shift", methods=["GET", "POST"])
+def add_shift():
+    drivers_list = get_all_drivers()
+    vehicles_list = get_all_vehicles()
+
+    if request.method == "POST":
+        form_data = clean_shift_form_data(request.form)
+        success, message = add_shift_record(form_data)
+
+        if success:
+            flash(message, "success")
+            return redirect(url_for("shifts"))
+
+        flash(message, "error")
+        return render_template(
+            "add_shift.html",
+            form_data=form_data,
+            drivers=drivers_list,
+            vehicles=vehicles_list
+        )
+
+    return render_template(
+        "add_shift.html",
+        drivers=drivers_list,
+        vehicles=vehicles_list
+    )
 
 
 @app.route("/alerts")
@@ -527,18 +878,52 @@ def profile():
 
 @app.route("/add-driver", methods=["GET", "POST"])
 def add_driver():
+    vehicles_list = get_all_vehicles()
+
     if request.method == "POST":
         form_data = clean_form_data(request.form)
-        success, message = add_driver_record(form_data)
+        upload_success, avatar_path, upload_message = upload_driver_image(
+            request.files.get("driver_image")
+        )
+
+        if not upload_success:
+            flash(upload_message, "error")
+            return render_template("add_driver.html", form_data=form_data, vehicles=vehicles_list)
+
+        if avatar_path:
+            form_data["avatar_path"] = avatar_path
+
+        success, message, driver_id = add_driver_and_get_id(form_data)
 
         if success:
+            # Nếu form có chọn xe, tạo luôn một ca làm việc để gán tài xế với xe.
+            # Thông tin gán ca nằm ở bảng shifts, không lưu trực tiếp trong drivers.
+            shift_data = {
+                "driver_id": driver_id,
+                "vehicle_id": request.form.get("vehicle_id"),
+                "shift_name": request.form.get("shift_name"),
+                "work_date": request.form.get("work_date"),
+                "start_time": request.form.get("start_time"),
+                "end_time": request.form.get("end_time"),
+                "status": "active",
+            }
+            if shift_data.get("vehicle_id"):
+                if not shift_data.get("work_date"):
+                    shift_data["work_date"] = datetime.now().date().isoformat()
+
+                shift_success, shift_message = add_shift_record(shift_data)
+                if shift_success:
+                    message = f"{message}. Đã gán xe/ca làm việc"
+                else:
+                    message = f"{message}. Chưa gán được xe/ca: {shift_message}"
+
             flash(message, "success")
             return redirect(url_for("drivers"))
 
         flash(message, "error")
-        return render_template("add_driver.html", form_data=form_data)
+        return render_template("add_driver.html", form_data=form_data, vehicles=vehicles_list)
 
-    return render_template("add_driver.html")
+    return render_template("add_driver.html", vehicles=vehicles_list)
 
 
 if __name__ == "__main__":
