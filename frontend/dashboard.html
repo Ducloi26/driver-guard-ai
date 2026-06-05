@@ -60,19 +60,19 @@
             <div class="metric-grid">
                 <div class="metric-card blue">
                     <div class="metric-title">Tổng tài xế</div>
-                    <div class="metric-value" id="totalDrivers">24</div>
+                    <div class="metric-value" id="totalDrivers">{{ stats.get('total_drivers', 0) }}</div>
                     <div class="metric-sub">Tài xế đang hoạt động</div>
                 </div>
 
                 <div class="metric-card success">
                     <div class="metric-title">Tổng số xe</div>
-                    <div class="metric-value" id="totalVehicles">12</div>
+                    <div class="metric-value" id="totalVehicles">{{ stats.get('total_vehicles', 0) }}</div>
                     <div class="metric-sub">Xe đang hoạt động</div>
                 </div>
 
                 <div class="metric-card danger">
                     <div class="metric-title">Cảnh báo hôm nay</div>
-                    <div class="metric-value" id="totalAlertsToday">8</div>
+                    <div class="metric-value" id="totalAlertsToday">{{ stats.get('total_alerts_today', 0) }}</div>
                     <div class="metric-sub">Theo ngày hiện tại</div>
                 </div>
             </div>
@@ -80,13 +80,13 @@
             <div class="metric-grid">
                 <div class="metric-card warning">
                     <div class="metric-title">Cảnh báo nguy hiểm</div>
-                    <div class="metric-value" id="highAlertsToday">3</div>
+                    <div class="metric-value" id="highAlertsToday">{{ stats.get('high_alerts_today', 0) }}</div>
                     <div class="metric-sub">Mức cao trong hôm nay</div>
                 </div>
 
                 <div class="metric-card blue">
                     <div class="metric-title">Ca đang hoạt động</div>
-                    <div class="metric-value" id="activeShifts">5</div>
+                    <div class="metric-value" id="activeShifts">{{ stats.get('active_shifts', 0) }}</div>
                     <div class="metric-sub">Ca đang diễn ra</div>
                 </div>
 
@@ -175,32 +175,28 @@
                     </thead>
 
                     <tbody id="recentAlertsTable">
+                        {% for alert in recent_alerts %}
                         <tr>
-                            <td>Nguyễn Văn A</td>
-                            <td>47A-12345</td>
-                            <td>Nhắm mắt lâu</td>
-                            <td><span class="badge badge-danger">HIGH</span></td>
-                            <td>13:35 - 05/06</td>
+                            <td>{{ alert.drivers.full_name if alert.drivers else 'Không xác định' }}</td>
+                            <td>{{ alert.vehicles.plate_number if alert.vehicles else '--' }}</td>
+                            <td>{{ alert.alert_type or '--' }}</td>
+                            <td>
+                                {% if alert.alert_level == 'high' %}
+                                    <span class="badge badge-danger">HIGH</span>
+                                {% elif alert.alert_level == 'medium' %}
+                                    <span class="badge badge-warning">MEDIUM</span>
+                                {% else %}
+                                    <span class="badge badge-success">{{ (alert.alert_level or 'LOW') | upper }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ alert.alert_time or '--' }}</td>
                             <td><span class="badge badge-warning">Mới ghi nhận</span></td>
                         </tr>
-
+                        {% else %}
                         <tr>
-                            <td>Trần Văn B</td>
-                            <td>47B-67890</td>
-                            <td>Ngáp liên tục</td>
-                            <td><span class="badge badge-warning">MEDIUM</span></td>
-                            <td>12:20 - 05/06</td>
-                            <td><span class="badge badge-warning">Mới ghi nhận</span></td>
+                            <td colspan="6">Chưa có cảnh báo mới</td>
                         </tr>
-
-                        <tr>
-                            <td>Lê Văn C</td>
-                            <td>47C-24680</td>
-                            <td>Gục đầu</td>
-                            <td><span class="badge badge-success">LOW</span></td>
-                            <td>10:45 - 05/06</td>
-                            <td><span class="badge badge-warning">Mới ghi nhận</span></td>
-                        </tr>
+                        {% endfor %}
                     </tbody>
                 </table>
             </div>

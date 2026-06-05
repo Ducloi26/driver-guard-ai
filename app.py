@@ -783,11 +783,6 @@ def login():
     return render_template("login.html")
 
 
-@app.route("/camera")
-def camera():
-    return render_template("camera.html")
-
-
 @app.route("/start_camera", methods=["POST"])
 def start_camera():
     global camera_stream, camera_running, face_recognition_frame_counter, last_recognition_result
@@ -870,7 +865,7 @@ def capture_image():
             "message": "Chưa có hình ảnh để chụp"
         })
 
-    save_dir = "static/captures"
+    save_dir = os.path.join(BASE_DIR, "frontend", "static", "captures")
     os.makedirs(save_dir, exist_ok=True)
 
     filename = datetime.now().strftime("capture_%Y%m%d_%H%M%S.jpg")
@@ -881,7 +876,7 @@ def capture_image():
     return jsonify({
         "status": "success",
         "message": "Đã chụp ảnh minh chứng",
-        "file": path
+        "file": f"/static/captures/{filename}"
     })
 
 
@@ -1136,103 +1131,6 @@ def remove_driver(driver_id):
     success, message = delete_driver(driver_id)
     flash(message, "success" if success else "error")
     return redirect(url_for("drivers"))
-
-
-@app.route("/start_camera", methods=["POST"])
-def start_camera():
-    global camera_stream, camera_running, face_recognition_frame_counter, last_recognition_result
-    global pending_recognition_key, pending_recognition_count
-    global latest_recognition_frame
-
-    if camera_running:
-        return jsonify({
-            "status": "already_running",
-            "known_faces": len(known_face_drivers),
-        })
-
-    refresh_known_face_drivers()
-    face_recognition_frame_counter = 0
-    pending_recognition_key = None
-    pending_recognition_count = 0
-    latest_recognition_frame = None
-    last_recognition_result = {
-        "status": "NOT_READY" if known_face_drivers else "NO_REGISTERED_FACE",
-        "driver": None,
-        "similarity": 0.0,
-        "shift": None,
-    }
-
-    camera_stream = cv2.VideoCapture(0)
-    if not camera_stream.isOpened():
-        camera_stream.release()
-        camera_stream = None
-        return jsonify({"status": "error", "message": "Không thể mở camera"}), 503
-
-    camera_running = True
-    start_recognition_worker()
-
-    return jsonify({
-        "status": "started",
-        "known_faces": len(known_face_drivers),
-    })
-
-
-@app.route("/stop_camera", methods=["POST"])
-def stop_camera():
-    global camera_stream, camera_running, current_driver_id
-
-    camera_running = False
-    stop_recognition_worker()
-
-    if camera_stream is not None:
-        camera_stream.release()
-        camera_stream = None
-
-    current_driver_id = None
-    reset_detection_state()
-
-    return jsonify({"status": "stopped"})
-
-
-@app.route("/camera_status")
-def camera_status():
-    return jsonify(build_camera_status_payload())
-
-
-@app.route("/video_feed")
-def video_feed():
-    if not camera_running:
-        return ""
-
-    return Response(
-        generate_frames(),
-        mimetype="multipart/x-mixed-replace; boundary=frame"
-    )
-
-
-@app.route("/capture_image", methods=["POST"])
-def capture_image():
-    global last_frame
-
-    if last_frame is None:
-        return jsonify({
-            "status": "error",
-            "message": "Chưa có hình ảnh để chụp"
-        })
-
-    save_dir = os.path.join(BASE_DIR, "frontend", "static", "captures")
-    os.makedirs(save_dir, exist_ok=True)
-
-    filename = datetime.now().strftime("capture_%Y%m%d_%H%M%S.jpg")
-    path = os.path.join(save_dir, filename)
-
-    cv2.imwrite(path, last_frame)
-
-    return jsonify({
-        "status": "success",
-        "message": "Đã chụp ảnh minh chứng",
-        "file": f"/static/captures/{filename}"
-    })
 
 
 @app.route("/rebuild_face_encodings", methods=["POST"])
