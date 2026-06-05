@@ -6,6 +6,7 @@ let webcamStream = null;
 let analyzeTimer = null;
 let previewAnimationId = null;
 let latestAI = null;
+let latestRecognition = null;
 
 const videoElement = document.createElement("video");
 videoElement.autoplay = true;
@@ -282,13 +283,28 @@ function drawMirroredVideo(ctx, destX, destY, destW, destH) {
     ctx.restore();
 }
 
-function drawLocalLikeOriginal(ctx) {
+function drawLocalLikeOriginal(ctx, recognition) {
     drawMirroredVideo(ctx, 0, 0, HALF_WIDTH, CANVAS_HEIGHT);
 
+    const isRecognized = recognition && recognition.status === "RECOGNIZED";
+    const isUnknown = recognition && recognition.status === "UNKNOWN_DRIVER";
+    const driverText = isRecognized
+        ? `DRIVER: ${recognition.driver_name || "Unknown"} (${recognition.confidence ?? 0}%)`
+        : isUnknown
+            ? `DRIVER: UNKNOWN (${recognition.confidence ?? 0}%)`
+            : "DRIVER: NOT READY";
+    const vehicleText = isRecognized
+        ? `VEHICLE: ${recognition.vehicle_plate || "--"}`
+        : "VEHICLE: --";
+    const shiftText = isRecognized
+        ? `SHIFT: ${recognition.shift_name || "--"}`
+        : "SHIFT: --";
+    const driverColor = isRecognized ? "#00ff00" : isUnknown ? "#ff3333" : "#00ff00";
+
     drawText(ctx, "CAMERA GOC", 20, 35, "#ffff00", 22);
-    drawText(ctx, "DRIVER: NOT READY", 20, 70, "#00ff00", 16);
-    drawText(ctx, "VEHICLE: --", 20, 100, "#ffff00", 16);
-    drawText(ctx, "SHIFT: --", 20, 130, "#00ffff", 16);
+    drawText(ctx, driverText, 20, 70, driverColor, 16);
+    drawText(ctx, vehicleText, 20, 100, "#ffff00", 16);
+    drawText(ctx, shiftText, 20, 130, "#00ffff", 16);
 }
 
 function drawFaceMeshAI(ctx, ai) {
@@ -351,7 +367,7 @@ function drawPreviewLoop() {
 
     previewCtx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    drawLocalLikeOriginal(previewCtx);
+    drawLocalLikeOriginal(previewCtx, latestRecognition);
     drawFaceMeshAI(previewCtx, latestAI);
 
     cameraImg.src = previewCanvas.toDataURL("image/jpeg", 0.78);
@@ -390,6 +406,7 @@ async function analyzeCurrentFrame() {
         }
 
         latestAI = data.ai;
+        latestRecognition = data.recognition;
         updateCameraPanel(data.ai, data.recognition);
     } catch (error) {
         console.error("Lỗi analyzeCurrentFrame:", error);
@@ -417,6 +434,7 @@ async function startCamera() {
         await videoElement.play();
 
         latestAI = null;
+        latestRecognition = null;
         aiLogEntries = [];
         renderAILog();
 
@@ -456,6 +474,7 @@ function stopCamera() {
     }
 
     latestAI = null;
+    latestRecognition = null;
 
     if (cameraImg) {
         cameraImg.src = "";
