@@ -20,6 +20,10 @@ const analyzeCtx = analyzeCanvas.getContext("2d");
 
 let aiLogEntries = [];
 
+const CANVAS_WIDTH = 960;
+const CANVAS_HEIGHT = 360;
+const HALF_WIDTH = 480;
+
 const AI_STATUS_MAP = {
     "EYES OPEN": { text: "Mở", css: "status-success" },
     "EYES CLOSED": { text: "Nhắm", css: "status-danger" },
@@ -48,9 +52,7 @@ function setStatusBox(id, mapped) {
     if (!box) return;
 
     const strong = box.querySelector("strong");
-    if (strong) {
-        strong.textContent = mapped.text;
-    }
+    if (strong) strong.textContent = mapped.text;
 
     box.className = "status-box " + mapped.css;
 }
@@ -162,15 +164,26 @@ function updateCameraPanel(ai) {
     setBadge(recognitionBadge, "AI realtime", "badge-success");
 
     if (driverChip) driverChip.textContent = "Tài xế: Đang phân tích";
+
     if (confidenceChip) {
         confidenceChip.textContent = `EAR: ${ai.ear ?? "--"} | MAR: ${ai.mar ?? "--"}`;
     }
+
     if (vehicleChip) vehicleChip.textContent = "Xe: --";
 
     if (statusChip) {
         statusChip.textContent = `Trạng thái: ${ai.drowsy_status || "NORMAL"}`;
         statusChip.classList.toggle("danger", ai.drowsy_status && ai.drowsy_status !== "NORMAL");
     }
+}
+
+function drawText(ctx, text, x, y, color = "#00ff88", size = 20) {
+    ctx.font = `bold ${size}px Arial`;
+    ctx.fillStyle = color;
+    ctx.strokeStyle = "rgba(0,0,0,0.85)";
+    ctx.lineWidth = 4;
+    ctx.strokeText(text, x, y);
+    ctx.fillText(text, x, y);
 }
 
 function drawPoint(ctx, x, y, color, radius = 2.5) {
@@ -180,74 +193,87 @@ function drawPoint(ctx, x, y, color, radius = 2.5) {
     ctx.fill();
 }
 
-function drawText(ctx, text, x, y, color = "#00ff88", size = 20) {
-    ctx.font = `bold ${size}px Arial`;
-    ctx.fillStyle = color;
-    ctx.strokeStyle = "rgba(0, 0, 0, 0.8)";
-    ctx.lineWidth = 4;
-    ctx.strokeText(text, x, y);
-    ctx.fillText(text, x, y);
+function drawMirroredVideo(ctx, destX, destY, destW, destH) {
+    ctx.save();
+    ctx.translate(destX + destW, destY);
+    ctx.scale(-1, 1);
+    ctx.drawImage(videoElement, 0, 0, destW, destH);
+    ctx.restore();
 }
 
-function drawLandmarks(ctx, ai, width, height) {
+function drawLocalLikeOriginal(ctx) {
+    drawMirroredVideo(ctx, 0, 0, HALF_WIDTH, CANVAS_HEIGHT);
+
+    drawText(ctx, "CAMERA GOC", 20, 35, "#ffff00", 22);
+    drawText(ctx, "DRIVER: NOT READY", 20, 70, "#00ff00", 16);
+    drawText(ctx, "VEHICLE: --", 20, 100, "#ffff00", 16);
+    drawText(ctx, "SHIFT: --", 20, 130, "#00ffff", 16);
+}
+
+function drawFaceMeshAI(ctx, ai) {
+    const offsetX = HALF_WIDTH;
+
+    drawMirroredVideo(ctx, offsetX, 0, HALF_WIDTH, CANVAS_HEIGHT);
+
     if (!ai || !Array.isArray(ai.landmarks) || ai.landmarks.length === 0) {
-        drawText(ctx, "NO FACE DETECTED", 20, 80, "#ff3b30", 22);
+        drawText(ctx, "FACE MESH AI", offsetX + 20, 35, "#00ff00", 22);
+        drawText(ctx, "NO FACE DETECTED", offsetX + 20, 80, "#ff3333", 22);
         return;
     }
 
     for (const lm of ai.landmarks) {
-        const x = lm.x * width;
-        const y = lm.y * height;
-        drawPoint(ctx, x, y, "rgba(0, 255, 120, 0.75)", 1.4);
+        const x = offsetX + lm.x * HALF_WIDTH;
+        const y = lm.y * CANVAS_HEIGHT;
+        drawPoint(ctx, x, y, "rgba(0,255,120,0.75)", 1.3);
     }
 
     if (Array.isArray(ai.left_eye_indexes)) {
         for (const index of ai.left_eye_indexes) {
             const lm = ai.landmarks[index];
-            if (lm) drawPoint(ctx, lm.x * width, lm.y * height, "#00ff00", 3.5);
+            if (lm) drawPoint(ctx, offsetX + lm.x * HALF_WIDTH, lm.y * CANVAS_HEIGHT, "#00ff00", 3.5);
         }
     }
 
     if (Array.isArray(ai.right_eye_indexes)) {
         for (const index of ai.right_eye_indexes) {
             const lm = ai.landmarks[index];
-            if (lm) drawPoint(ctx, lm.x * width, lm.y * height, "#ffff00", 3.5);
+            if (lm) drawPoint(ctx, offsetX + lm.x * HALF_WIDTH, lm.y * CANVAS_HEIGHT, "#ffff00", 3.5);
         }
     }
 
     if (Array.isArray(ai.mouth_indexes)) {
         for (const index of ai.mouth_indexes) {
             const lm = ai.landmarks[index];
-            if (lm) drawPoint(ctx, lm.x * width, lm.y * height, "#ff00ff", 3.5);
+            if (lm) drawPoint(ctx, offsetX + lm.x * HALF_WIDTH, lm.y * CANVAS_HEIGHT, "#ff00ff", 3.5);
         }
     }
 
-    drawText(ctx, "FACE MESH AI", 20, 35, "#00ff88", 22);
-    drawText(ctx, `EAR: ${ai.ear ?? "--"}`, 20, 70, "#ffff00", 18);
-    drawText(ctx, `MAR: ${ai.mar ?? "--"}`, 20, 100, "#ff66ff", 18);
-    drawText(ctx, `EYE: ${ai.eye_status || "--"}`, 20, 130, ai.eye_status === "EYES CLOSED" ? "#ff3b30" : "#00ff88", 18);
-    drawText(ctx, `MOUTH: ${ai.mouth_status || "--"}`, 20, 160, ai.mouth_status === "MOUTH OPEN" ? "#ffcc00" : "#00ff88", 18);
-    drawText(ctx, `HEAD: ${ai.head_status || "--"}`, 20, 190, ai.head_status === "HEAD DOWN" ? "#ff3b30" : "#00ff88", 18);
-    drawText(ctx, `DROWSY: ${ai.drowsy_status || "--"}`, 20, 220, ai.drowsy_status !== "NORMAL" ? "#ff3b30" : "#00ff88", 18);
+    const eyeColor = ai.eye_status === "EYES CLOSED" ? "#ff3333" : "#00ff00";
+    const mouthColor = ai.mouth_status === "MOUTH OPEN" ? "#ff3333" : "#00ff00";
+    const headColor = ai.head_status === "HEAD DOWN" ? "#ff3333" : "#00ff00";
+    const drowsyColor = ai.drowsy_status !== "NORMAL" ? "#ff3333" : "#00ff00";
+
+    drawText(ctx, "FACE MESH AI", offsetX + 20, 35, "#00ff00", 22);
+    drawText(ctx, `EAR: ${ai.ear ?? "--"}`, offsetX + 20, 70, "#ffff00", 18);
+    drawText(ctx, `MAR: ${ai.mar ?? "--"}`, offsetX + 20, 100, "#ff66ff", 18);
+    drawText(ctx, `STATUS: ${ai.eye_status || "--"}`, offsetX + 20, 130, eyeColor, 18);
+    drawText(ctx, `MOUTH: ${ai.mouth_status || "--"}`, offsetX + 20, 160, mouthColor, 18);
+    drawText(ctx, `HEAD: ${ai.head_status || "--"}`, offsetX + 20, 190, headColor, 18);
+    drawText(ctx, `DROWSY: ${ai.drowsy_status || "--"}`, offsetX + 20, 220, drowsyColor, 18);
 }
 
 function drawPreviewLoop() {
     if (!webcamStream || !videoElement.videoWidth || !cameraImg) return;
 
-    const width = videoElement.videoWidth;
-    const height = videoElement.videoHeight;
+    previewCanvas.width = CANVAS_WIDTH;
+    previewCanvas.height = CANVAS_HEIGHT;
 
-    previewCanvas.width = width;
-    previewCanvas.height = height;
+    previewCtx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    previewCtx.save();
-    previewCtx.scale(-1, 1);
-    previewCtx.drawImage(videoElement, -width, 0, width, height);
-    previewCtx.restore();
+    drawLocalLikeOriginal(previewCtx);
+    drawFaceMeshAI(previewCtx, latestAI);
 
-    drawLandmarks(previewCtx, latestAI, width, height);
-
-    cameraImg.src = previewCanvas.toDataURL("image/jpeg", 0.75);
+    cameraImg.src = previewCanvas.toDataURL("image/jpeg", 0.78);
 
     previewAnimationId = requestAnimationFrame(drawPreviewLoop);
 }
