@@ -5,7 +5,7 @@ gunicorn
 opencv-python-headless
 mediapipe==0.10.35
 
-numpy==1.26.4
+numpy
 pandas
 pillow
 requests
@@ -16,7 +16,7 @@ werkzeug
 deepface==0.0.100
 retina-face==0.0.17
 
-tensorflow==2.16.2
-tf-keras==2.16.0
-protobuf>=3.20,<5
-ml-dtypes~=0.3.1
+tensorflow==2.21.0
+tf-keras
+protobuf>=3.20,<6
+ml-dtypes
