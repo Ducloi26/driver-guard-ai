@@ -1340,17 +1340,11 @@ def analyze_frame():
         return jsonify({"status": "error", "message": str(e)}), 500
     
 
-
 @app.route("/debug-env")
 def debug_env():
-
     return {
-        "SUPABASE_URL_EXISTS": os.getenv("SUPABASE_URL") is not None,
-        "SERVICE_ROLE_EXISTS": os.getenv("SUPABASE_SERVICE_ROLE_KEY") is not None,
-        "ANON_KEY_EXISTS": os.getenv("SUPABASE_ANON_KEY") is not None,
-        "COMPANY_ID_EXISTS": os.getenv("DEFAULT_COMPANY_ID") is not None,
+        "message": "debug version 999"
     }
-
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
