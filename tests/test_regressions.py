@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import patch
 
 import app as webapp
+from models import face_recognition_model
 from utils import alert_manager
 
 
@@ -265,6 +266,7 @@ class CameraStatusAITests(unittest.TestCase):
         data = response.get_json()
 
         self.assertEqual(data["status"], "RECOGNIZED")
+        self.assertEqual(data["driver_id"], "d1")
         self.assertEqual(data["ai"]["eye_status"], "EYES OPEN")
 
 
@@ -274,6 +276,40 @@ class DetectionMathTests(unittest.TestCase):
 
         self.assertEqual(webapp.calculate_ear(degenerate_points), 0.0)
         self.assertEqual(webapp.calculate_mar(degenerate_points), 0.0)
+
+
+class FaceEncodingFormatTests(unittest.TestCase):
+    def test_extract_face_encoding_vectors_supports_legacy_vector(self):
+        vector = [1.0] + [0.0] * 511
+
+        vectors = face_recognition_model.extract_face_encoding_vectors(vector)
+
+        self.assertEqual(vectors, [vector])
+
+    def test_compare_face_embedding_supports_multi_encoding_payload(self):
+        current = [1.0] + [0.0] * 511
+        weak = [0.0, 1.0] + [0.0] * 510
+        strong = [1.0] + [0.0] * 511
+        known_faces = [
+            {
+                "id": "driver-a",
+                "face_encoding": {
+                    "model": "Facenet512",
+                    "detector": "opencv",
+                    "dim": 512,
+                    "encodings": [weak, strong],
+                },
+            },
+            {
+                "id": "driver-b",
+                "face_encoding": [0.0, 1.0] + [0.0] * 510,
+            },
+        ]
+
+        match = face_recognition_model.compare_face_embedding(current, known_faces)
+
+        self.assertEqual(match["driver"]["id"], "driver-a")
+        self.assertAlmostEqual(match["similarity"], 1.0)
 
 
 class AlertManagerTests(unittest.TestCase):

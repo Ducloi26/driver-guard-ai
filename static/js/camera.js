@@ -1,6 +1,7 @@
 const cameraImg = document.querySelector(".camera-stream");
 
 let cameraStatusTimer = null;
+let currentRecognizedDriverId = null;
 
 function textOrDash(value) {
     return value || "--";
@@ -126,10 +127,16 @@ function updateCameraPanel(data) {
     const confidenceChip = document.getElementById("cameraConfidenceChip");
     const vehicleChip = document.getElementById("cameraVehicleChip");
     const statusChip = document.getElementById("cameraStatusChip");
+    const enrollFaceButton = document.getElementById("enrollFaceButton");
 
     updateAIStatus(data.ai);
 
     if (data.status === "RECOGNIZED") {
+        currentRecognizedDriverId = data.driver_id;
+        if (enrollFaceButton) {
+            enrollFaceButton.disabled = !currentRecognizedDriverId;
+        }
+
         driverName.textContent = data.driver_name;
         driverAvatar.textContent = getInitials(data.driver_name);
         driverVerify.textContent = `Đã xác thực khuôn mặt - độ chính xác ${data.confidence}%`;
@@ -147,6 +154,11 @@ function updateCameraPanel(data) {
     }
 
     if (data.status === "UNKNOWN_DRIVER") {
+        currentRecognizedDriverId = null;
+        if (enrollFaceButton) {
+            enrollFaceButton.disabled = true;
+        }
+
         driverName.textContent = "Không xác định";
         driverAvatar.textContent = "??";
         driverVerify.textContent = `Không khớp dữ liệu tài xế - độ gần nhất ${data.confidence}%`;
@@ -161,6 +173,11 @@ function updateCameraPanel(data) {
         statusChip.textContent = "Trạng thái: Chưa khớp dữ liệu";
         statusChip.classList.add("danger");
         return;
+    }
+
+    currentRecognizedDriverId = null;
+    if (enrollFaceButton) {
+        enrollFaceButton.disabled = true;
     }
 
     driverName.textContent = "Đang chờ nhận diện";
@@ -255,5 +272,43 @@ function captureImage() {
     .catch(error => {
         console.error("Lỗi captureImage:", error);
         alert("Không thể chụp ảnh minh chứng");
+    });
+}
+
+function enrollRecognizedFace() {
+    if (!currentRecognizedDriverId) {
+        alert("Camera chua xac thuc tai xe");
+        return;
+    }
+
+    const enrollFaceButton = document.getElementById("enrollFaceButton");
+    if (enrollFaceButton) {
+        enrollFaceButton.disabled = true;
+        enrollFaceButton.textContent = "Dang ghi...";
+    }
+
+    fetch(`/drivers/${currentRecognizedDriverId}/enroll_face_from_camera`, {
+        method: "POST"
+    })
+    .then(async response => {
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.message || "Khong the ghi mau khuon mat");
+        }
+        return data;
+    })
+    .then(data => {
+        alert(data.message || "Da ghi mau khuon mat");
+        refreshCameraStatus();
+    })
+    .catch(error => {
+        console.error("Loi enrollRecognizedFace:", error);
+        alert(error.message || "Khong the ghi mau khuon mat");
+    })
+    .finally(() => {
+        if (enrollFaceButton) {
+            enrollFaceButton.textContent = "Ghi mau khuon mat";
+            enrollFaceButton.disabled = !currentRecognizedDriverId;
+        }
     });
 }

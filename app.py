@@ -35,7 +35,7 @@ from database import (
     delete_driver,
     get_driver_stats,
 )
-from models.face_recognition_model import recognize_driver_from_frame, rebuild_all_face_encodings, build_face_encoding_for_driver
+from models.face_recognition_model import recognize_driver_from_frame, rebuild_all_face_encodings, build_face_encoding_for_driver, append_face_encoding_from_frame
 from utils.alert_manager import process_violation
 from utils.logger import setup_logger
 
@@ -46,12 +46,13 @@ logger = setup_logger(__name__)
 camera_stream = None
 camera_running = False
 last_frame = None
+last_original_camera_frame = None
 known_face_drivers = []
 face_recognition_frame_counter = 0
-FACE_RECOGNITION_THRESHOLD = 0.87
-RECOGNITION_CONFIRM_FRAMES = 3
+FACE_RECOGNITION_THRESHOLD = 0.8
+RECOGNITION_CONFIRM_FRAMES = 2
 UNKNOWN_CONFIRM_FRAMES = 5
-FACE_RECOGNITION_INTERVAL_SECONDS = 1.5
+FACE_RECOGNITION_INTERVAL_SECONDS = 0.8
 pending_recognition_key = None
 pending_recognition_count = 0
 recognition_worker_thread = None
@@ -130,6 +131,7 @@ BLINK_MAX_SECONDS = 0.5
 BLINK_WARNING_THRESHOLD = 15
 
 eyes_closed_start_time = None
+closed_counter = 0
 blink_counter = 0
 tired_event_counter = 0
 blink_start_time = time.time()
@@ -160,12 +162,13 @@ latest_ai_state = {
 
 
 def reset_detection_state():
-    global eyes_closed_start_time, blink_counter, tired_event_counter, blink_start_time
+    global eyes_closed_start_time, closed_counter, blink_counter, tired_event_counter, blink_start_time
     global mouth_open_detected, mouth_open_time, yawn_counter
     global head_down_start_time, head_down_detected, alert_triggered
     global latest_ai_state
 
     eyes_closed_start_time = None
+    closed_counter = 0
     blink_counter = 0
     tired_event_counter = 0
     blink_start_time = time.time()
@@ -416,6 +419,7 @@ def build_camera_status_payload() -> dict:
 
         return {
             "status": "RECOGNIZED",
+            "driver_id": driver.get("id"),
             "driver_name": driver.get("full_name") or "Không xác định",
             "driver_code": driver.get("driver_code"),
             "phone": driver.get("phone") or "--",
@@ -430,6 +434,7 @@ def build_camera_status_payload() -> dict:
     if status == "UNKNOWN_DRIVER":
         return {
             "status": "UNKNOWN_DRIVER",
+            "driver_id": None,
             "driver_name": "Không xác định",
             "driver_code": None,
             "phone": "--",
@@ -443,6 +448,7 @@ def build_camera_status_payload() -> dict:
 
     return {
         "status": status or "NOT_READY",
+        "driver_id": None,
         "driver_name": "Đang chờ nhận diện",
         "driver_code": None,
         "phone": "--",
@@ -470,7 +476,7 @@ def to_camera_text(value) -> str:
 
 
 def generate_frames():
-    global camera_stream, camera_running, last_frame
+    global camera_stream, camera_running, last_frame, last_original_camera_frame
     global eyes_closed_start_time, blink_counter, tired_event_counter, blink_start_time
     global mouth_open_detected, mouth_open_time, yawn_counter
     global head_down_start_time, head_down_detected
@@ -492,6 +498,7 @@ def generate_frames():
 
             original_frame = frame.copy()
             ai_frame = frame.copy()
+            last_original_camera_frame = original_frame.copy()
 
             # Chỉ cập nhật frame mới nhất cho thread nhận diện nền.
             # DeepFace không chạy trực tiếp trong vòng lặp video để tránh lag.
@@ -813,7 +820,7 @@ def start_camera():
 
 @app.route("/stop_camera", methods=["POST"])
 def stop_camera():
-    global camera_stream, camera_running, current_driver_id
+    global camera_stream, camera_running, current_driver_id, last_original_camera_frame
 
     camera_running = False
     stop_recognition_worker()
@@ -823,6 +830,7 @@ def stop_camera():
         camera_stream = None
 
     current_driver_id = None
+    last_original_camera_frame = None
     reset_detection_state()
 
     return jsonify({"status": "stopped"})
@@ -867,6 +875,38 @@ def capture_image():
         "message": "Đã chụp ảnh minh chứng",
         "file": path
     })
+
+
+@app.route("/drivers/<driver_id>/enroll_face_from_camera", methods=["POST"])
+def enroll_face_from_camera(driver_id):
+    global last_original_camera_frame
+
+    if not camera_running or last_original_camera_frame is None:
+        return jsonify({
+            "status": "error",
+            "message": "Camera chưa có frame mới để ghi khuôn mặt"
+        }), 400
+
+    driver = get_driver_by_id(driver_id)
+    if not driver:
+        return jsonify({
+            "status": "error",
+            "message": "Không tìm thấy tài xế"
+        }), 404
+
+    ok, message = append_face_encoding_from_frame(
+        driver,
+        last_original_camera_frame.copy()
+    )
+
+    if ok:
+        refresh_known_face_drivers()
+
+    return jsonify({
+        "status": "success" if ok else "error",
+        "message": message,
+        "known_faces": len(known_face_drivers),
+    }), 200 if ok else 400
 
 
 @app.route("/register")
