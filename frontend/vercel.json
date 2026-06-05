@@ -1,0 +1,21 @@
+{
+  "rewrites": [
+    { "source": "/", "destination": "/login.html" },
+    { "source": "/login", "destination": "/login.html" },
+    { "source": "/register", "destination": "/register.html" },
+    { "source": "/dashboard", "destination": "/dashboard.html" },
+    { "source": "/drivers", "destination": "/drivers.html" },
+    { "source": "/driver_detail", "destination": "/driver_detail.html" },
+    { "source": "/edit_driver", "destination": "/edit_driver.html" },
+    { "source": "/add_driver", "destination": "/add_driver.html" },
+    { "source": "/vehicles", "destination": "/vehicles.html" },
+    { "source": "/add_vehicle", "destination": "/add_vehicle.html" },
+    { "source": "/shifts", "destination": "/shifts.html" },
+    { "source": "/add_shift", "destination": "/add_shift.html" },
+    { "source": "/camera", "destination": "/camera.html" },
+    { "source": "/alerts", "destination": "/alerts.html" },
+    { "source": "/stats", "destination": "/stats.html" },
+    { "source": "/profile", "destination": "/profile.html" },
+    { "source": "/settings", "destination": "/settings.html" }
+  ]
+}
