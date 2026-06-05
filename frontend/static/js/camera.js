@@ -19,6 +19,16 @@ const analyzeCanvas = document.createElement("canvas");
 const analyzeCtx = analyzeCanvas.getContext("2d");
 
 let aiLogEntries = [];
+let currentRecognizedDriverId = null;
+
+function textOrDash(value) {
+    return value || "--";
+}
+
+function getInitials(name) {
+    if (!name || name === "Không xác định" || name === "Đang chờ nhận diện") return "--";
+    return name.trim().split(/\s+/).slice(-2).map(p => p[0]).join("").toUpperCase();
+}
 
 const CANVAS_WIDTH = 960;
 const CANVAS_HEIGHT = 360;
@@ -138,7 +148,7 @@ function updateAIStatus(ai) {
     }
 }
 
-function updateCameraPanel(ai) {
+function updateCameraPanel(ai, recognition) {
     updateAIStatus(ai);
 
     const driverName = document.getElementById("cameraDriverName");
@@ -148,32 +158,103 @@ function updateCameraPanel(ai) {
     const shiftInfo = document.getElementById("cameraShiftInfo");
     const driverPhone = document.getElementById("cameraDriverPhone");
     const recognitionBadge = document.getElementById("cameraRecognitionBadge");
-
     const driverChip = document.getElementById("cameraDriverChip");
     const confidenceChip = document.getElementById("cameraConfidenceChip");
     const vehicleChip = document.getElementById("cameraVehicleChip");
     const statusChip = document.getElementById("cameraStatusChip");
+    const enrollFaceButton = document.getElementById("enrollFaceButton");
 
-    if (driverName) driverName.textContent = "Camera trình duyệt";
-    if (driverAvatar) driverAvatar.textContent = "AI";
-    if (driverVerify) driverVerify.textContent = "Đang phân tích webcam từ trình duyệt";
-    if (vehiclePlate) vehiclePlate.textContent = "--";
-    if (shiftInfo) shiftInfo.textContent = "--";
-    if (driverPhone) driverPhone.textContent = "--";
-
-    setBadge(recognitionBadge, "AI realtime", "badge-success");
-
-    if (driverChip) driverChip.textContent = "Tài xế: Đang phân tích";
-
+    // Cập nhật chip EAR/MAR luôn hiển thị dữ liệu AI realtime
     if (confidenceChip) {
         confidenceChip.textContent = `EAR: ${ai.ear ?? "--"} | MAR: ${ai.mar ?? "--"}`;
     }
-
-    if (vehicleChip) vehicleChip.textContent = "Xe: --";
-
     if (statusChip) {
         statusChip.textContent = `Trạng thái: ${ai.drowsy_status || "NORMAL"}`;
         statusChip.classList.toggle("danger", ai.drowsy_status && ai.drowsy_status !== "NORMAL");
+    }
+
+    if (!recognition) return;
+
+    if (recognition.status === "RECOGNIZED") {
+        currentRecognizedDriverId = recognition.driver_id;
+        if (enrollFaceButton) enrollFaceButton.disabled = false;
+
+        if (driverName) driverName.textContent = recognition.driver_name;
+        if (driverAvatar) driverAvatar.textContent = getInitials(recognition.driver_name);
+        if (driverVerify) driverVerify.textContent = `Đã xác thực khuôn mặt - độ chính xác ${recognition.confidence}%`;
+        if (vehiclePlate) vehiclePlate.textContent = textOrDash(recognition.vehicle_plate);
+        if (shiftInfo) shiftInfo.textContent = `${textOrDash(recognition.shift_name)} | ${textOrDash(recognition.shift_time)}`;
+        if (driverPhone) driverPhone.textContent = textOrDash(recognition.phone);
+        setBadge(recognitionBadge, "Đã xác thực", "badge-success");
+        if (driverChip) driverChip.textContent = `Tài xế: ${recognition.driver_name}`;
+        if (vehicleChip) vehicleChip.textContent = `Xe: ${textOrDash(recognition.vehicle_plate)}`;
+        return;
+    }
+
+    if (recognition.status === "UNKNOWN_DRIVER") {
+        currentRecognizedDriverId = null;
+        if (enrollFaceButton) enrollFaceButton.disabled = true;
+
+        if (driverName) driverName.textContent = "Không xác định";
+        if (driverAvatar) driverAvatar.textContent = "??";
+        if (driverVerify) driverVerify.textContent = `Không khớp dữ liệu tài xế - độ gần nhất ${recognition.confidence}%`;
+        if (vehiclePlate) vehiclePlate.textContent = "--";
+        if (shiftInfo) shiftInfo.textContent = "--";
+        if (driverPhone) driverPhone.textContent = "--";
+        setBadge(recognitionBadge, "Không xác định", "badge-danger");
+        if (driverChip) driverChip.textContent = "Tài xế: Không xác định";
+        if (vehicleChip) vehicleChip.textContent = "Xe: --";
+        return;
+    }
+
+    // NO_FACE hoặc chưa nhận diện
+    currentRecognizedDriverId = null;
+    if (enrollFaceButton) enrollFaceButton.disabled = true;
+
+    if (driverName) driverName.textContent = "Đang chờ nhận diện";
+    if (driverAvatar) driverAvatar.textContent = "--";
+    if (driverVerify) driverVerify.textContent = "Camera chưa xác thực tài xế";
+    if (vehiclePlate) vehiclePlate.textContent = "--";
+    if (shiftInfo) shiftInfo.textContent = "--";
+    if (driverPhone) driverPhone.textContent = "--";
+    setBadge(recognitionBadge, "Đang chờ", "badge-warning");
+    if (driverChip) driverChip.textContent = "Tài xế: Đang chờ";
+    if (vehicleChip) vehicleChip.textContent = "Xe: --";
+}
+
+async function enrollRecognizedFace() {
+    if (!currentRecognizedDriverId) {
+        alert("Camera chưa xác thực tài xế");
+        return;
+    }
+
+    const enrollFaceButton = document.getElementById("enrollFaceButton");
+    if (enrollFaceButton) {
+        enrollFaceButton.disabled = true;
+        enrollFaceButton.textContent = "Đang ghi...";
+    }
+
+    // Chụp frame hiện tại từ canvas đang dùng để phân tích
+    const imageBase64 = analyzeCanvas.toDataURL("image/jpeg", 0.9);
+
+    try {
+        const response = await fetch(`${BACKEND_URL}/drivers/${currentRecognizedDriverId}/enroll_face_from_camera`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ image: imageBase64 }),
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || "Không thể ghi mẫu khuôn mặt");
+        alert(data.message || "Đã ghi mẫu khuôn mặt");
+    } catch (error) {
+        console.error("Lỗi enrollRecognizedFace:", error);
+        alert(error.message || "Không thể ghi mẫu khuôn mặt");
+    } finally {
+        if (enrollFaceButton) {
+            enrollFaceButton.textContent = "Ghi góc khuôn mặt";
+            enrollFaceButton.disabled = !currentRecognizedDriverId;
+        }
     }
 }
 
@@ -309,7 +390,7 @@ async function analyzeCurrentFrame() {
         }
 
         latestAI = data.ai;
-        updateCameraPanel(data.ai);
+        updateCameraPanel(data.ai, data.recognition);
     } catch (error) {
         console.error("Lỗi analyzeCurrentFrame:", error);
     }

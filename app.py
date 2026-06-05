@@ -84,6 +84,17 @@ last_recognition_result = {
     "similarity": 0.0,
     "shift": None,
 }
+last_browser_recognition_time = 0.0
+last_browser_recognition_result = {
+    "status": "NO_FACE",
+    "driver_id": None,
+    "driver_name": "Đang chờ nhận diện",
+    "confidence": 0.0,
+    "vehicle_plate": "--",
+    "shift_name": "--",
+    "shift_time": "--",
+    "phone": "--",
+}
 mp_face_mesh = mp.solutions.face_mesh
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
@@ -896,11 +907,33 @@ def capture_image():
 def enroll_face_from_camera(driver_id):
     global last_original_camera_frame
 
-    if not camera_running or last_original_camera_frame is None:
-        return jsonify({
-            "status": "error",
-            "message": "Camera chưa có frame mới để ghi khuôn mặt"
-        }), 400
+    body = request.get_json(silent=True) or {}
+    image_data = body.get("image")
+
+    if image_data:
+        # Browser webcam mode: client gửi frame base64
+        if "," in image_data:
+            image_data = image_data.split(",", 1)[1]
+        try:
+            image_bytes = base64.b64decode(image_data)
+            np_arr = np.frombuffer(image_bytes, np.uint8)
+            frame_bgr = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+        except Exception:
+            frame_bgr = None
+
+        if frame_bgr is None:
+            return jsonify({
+                "status": "error",
+                "message": "Không đọc được frame từ trình duyệt"
+            }), 400
+    else:
+        # Local camera mode: dùng frame cuối từ OpenCV
+        if not camera_running or last_original_camera_frame is None:
+            return jsonify({
+                "status": "error",
+                "message": "Camera chưa có frame mới để ghi khuôn mặt"
+            }), 400
+        frame_bgr = last_original_camera_frame.copy()
 
     driver = get_driver_by_id(driver_id)
     if not driver:
@@ -911,7 +944,7 @@ def enroll_face_from_camera(driver_id):
 
     ok, message = append_face_encoding_from_frame(
         driver,
-        last_original_camera_frame.copy()
+        frame_bgr
     )
 
     if ok:
@@ -1233,6 +1266,58 @@ def analyze_frame():
             elif mouth_status == "MOUTH OPEN":
                 drowsy_status = "TIRED"
 
+        # Nhận diện tài xế từ browser webcam, chạy theo interval để giảm tải
+        global last_browser_recognition_time, last_browser_recognition_result
+        now_ts = time.time()
+        if results.multi_face_landmarks and (now_ts - last_browser_recognition_time) >= FACE_RECOGNITION_INTERVAL_SECONDS:
+            last_browser_recognition_time = now_ts
+            if not known_face_drivers:
+                refresh_known_face_drivers()
+            if known_face_drivers:
+                raw = recognize_driver_from_frame(frame, known_face_drivers, threshold=FACE_RECOGNITION_THRESHOLD)
+                raw_status = raw.get("status")
+                raw_driver = raw.get("driver")
+                similarity = raw.get("similarity", 0.0)
+
+                if raw_status == "RECOGNIZED" and raw_driver:
+                    shift = get_current_shift_by_driver(raw_driver.get("id"))
+                    vehicle = shift.get("vehicles") if shift else None
+                    s_time = shift.get("start_time") if shift else None
+                    e_time = shift.get("end_time") if shift else None
+                    shift_time = f"{s_time or '--:--'} - {e_time or '--:--'}" if (s_time or e_time) else "--"
+                    last_browser_recognition_result = {
+                        "status": "RECOGNIZED",
+                        "driver_id": raw_driver.get("id"),
+                        "driver_name": raw_driver.get("full_name") or "Không xác định",
+                        "confidence": round(similarity * 100, 1),
+                        "vehicle_plate": (vehicle.get("plate_number") if vehicle else None) or "Chưa gán",
+                        "shift_name": (shift.get("shift_name") if shift else None) or "Chưa gán",
+                        "shift_time": shift_time,
+                        "phone": raw_driver.get("phone") or "--",
+                    }
+                elif raw_status == "UNKNOWN_DRIVER":
+                    last_browser_recognition_result = {
+                        "status": "UNKNOWN_DRIVER",
+                        "driver_id": None,
+                        "driver_name": "Không xác định",
+                        "confidence": round(similarity * 100, 1),
+                        "vehicle_plate": "--",
+                        "shift_name": "--",
+                        "shift_time": "--",
+                        "phone": "--",
+                    }
+                else:
+                    last_browser_recognition_result = {
+                        "status": "NO_FACE",
+                        "driver_id": None,
+                        "driver_name": "Đang chờ nhận diện",
+                        "confidence": 0.0,
+                        "vehicle_plate": "--",
+                        "shift_name": "--",
+                        "shift_time": "--",
+                        "phone": "--",
+                    }
+
         return jsonify({
             "status": "success",
             "ai": {
@@ -1246,7 +1331,8 @@ def analyze_frame():
                 "left_eye_indexes": LEFT_EYE_INDEXES,
                 "right_eye_indexes": RIGHT_EYE_INDEXES,
                 "mouth_indexes": MOUTH_INDEXES
-            }
+            },
+            "recognition": last_browser_recognition_result,
         })
 
     except Exception as e:
