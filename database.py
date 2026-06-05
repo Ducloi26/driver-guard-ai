@@ -526,6 +526,51 @@ def attach_current_shift_to_drivers(drivers: list) -> list:
         return drivers
 
 
+def get_driver_stats(drivers: list | None = None) -> dict:
+    """
+    Tính số liệu tóm tắt tài xế cho 4 ô summary ở trang /drivers.
+
+    total/active/resting tính ngay trên danh sách đã load (không query thêm).
+    high_risk phải đọc bảng alerts (đếm tài xế có ít nhất 1 cảnh báo mức 'high')
+    nên query riêng, lọc theo company_id và chỉ tính tài xế còn trong danh sách.
+    """
+    drivers = drivers if drivers is not None else get_all_drivers()
+
+    stats = {
+        "total_drivers": len(drivers),
+        "active_drivers": len([d for d in drivers if d.get("status") == "active"]),
+        "resting_drivers": len([d for d in drivers if d.get("status") == "suspended"]),
+        "high_risk_drivers": 0,
+    }
+
+    try:
+        supabase = get_supabase_client()
+        company_id = get_default_company_id()
+
+        response = (
+            supabase
+            .table("alerts")
+            .select("driver_id")
+            .eq("company_id", company_id)
+            .eq("alert_level", "high")
+            .execute()
+        )
+
+        # Chỉ đếm tài xế có trong danh sách hiện tại (bỏ tài xế đã soft delete).
+        current_ids = {d.get("id") for d in drivers}
+        risky_ids = {
+            row.get("driver_id")
+            for row in (response.data or [])
+            if row.get("driver_id") in current_ids
+        }
+        stats["high_risk_drivers"] = len(risky_ids)
+
+    except Exception as e:
+        logger.error(f"get_driver_stats() lỗi: {e}")
+
+    return stats
+
+
 def get_driver_by_id(driver_id: str) -> dict | None:
     """
     Lấy thông tin chi tiết 1 tài xế theo ID.

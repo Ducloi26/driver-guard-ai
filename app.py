@@ -30,6 +30,10 @@ from database import (
     get_dashboard_stats,
     get_drivers_with_face_encoding,
     get_current_shift_by_driver,
+    get_driver_by_id,
+    update_driver,
+    delete_driver,
+    get_driver_stats,
 )
 from models.face_recognition_model import recognize_driver_from_frame, rebuild_all_face_encodings, build_face_encoding_for_driver
 from utils.alert_manager import process_violation
@@ -882,7 +886,8 @@ def drivers():
     drivers_list = get_all_drivers()
     drivers_list = attach_current_shift_to_drivers(drivers_list)
     drivers_list = attach_avatar_urls_to_drivers(drivers_list)
-    return render_template("drivers.html", drivers=drivers_list)
+    driver_stats = get_driver_stats(drivers_list)
+    return render_template("drivers.html", drivers=drivers_list, driver_stats=driver_stats)
 
 
 @app.route("/vehicles")
@@ -1022,6 +1027,54 @@ def add_driver():
         return render_template("add_driver.html", form_data=form_data, vehicles=vehicles_list)
 
     return render_template("add_driver.html", vehicles=vehicles_list)
+
+
+@app.route("/drivers/<driver_id>")
+def driver_detail(driver_id):
+    # Xem chi tiết một tài xế. get_driver_by_id đã tự lọc theo company_id nên
+    # không lo lấy nhầm tài xế của công ty khác.
+    driver = get_driver_by_id(driver_id)
+    if not driver:
+        flash("Không tìm thấy tài xế", "error")
+        return redirect(url_for("drivers"))
+
+    # Tạo URL ảnh có hạn (signed URL) để hiển thị avatar; hàm nhận list nên bọc lại.
+    driver = attach_avatar_urls_to_drivers([driver])[0]
+    shift = get_current_shift_by_driver(driver_id)
+    return render_template("driver_detail.html", driver=driver, shift=shift)
+
+
+@app.route("/drivers/<driver_id>/edit", methods=["GET", "POST"])
+def edit_driver(driver_id):
+    driver = get_driver_by_id(driver_id)
+    if not driver:
+        flash("Không tìm thấy tài xế", "error")
+        return redirect(url_for("drivers"))
+
+    if request.method == "POST":
+        # update_driver chỉ nhận các field cốt lõi (không gồm ảnh/ca làm việc),
+        # nên form sửa cũng chỉ chứa đúng các field đó.
+        form_data = clean_form_data(request.form)
+        success, message = update_driver(driver_id, form_data)
+
+        if success:
+            flash(message, "success")
+            return redirect(url_for("drivers"))
+
+        # Lỗi: render lại form với dữ liệu user vừa nhập (ghi đè lên dữ liệu cũ).
+        flash(message, "error")
+        return render_template("edit_driver.html", driver={**driver, **form_data})
+
+    return render_template("edit_driver.html", driver=driver)
+
+
+@app.route("/drivers/<driver_id>/delete", methods=["POST"])
+def remove_driver(driver_id):
+    # delete_driver là soft delete: chỉ đổi status sang 'inactive' để giữ lịch sử
+    # cảnh báo liên quan, không xóa cứng khỏi DB.
+    success, message = delete_driver(driver_id)
+    flash(message, "success" if success else "error")
+    return redirect(url_for("drivers"))
 
 
 @app.route("/rebuild_face_encodings", methods=["POST"])

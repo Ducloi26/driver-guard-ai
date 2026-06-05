@@ -57,51 +57,57 @@
 
         <section class="content">
 
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                    <div class="badge {{ 'badge-success' if category == 'success' else 'badge-danger' }}"
+                         style="display:block;padding:12px 16px;margin-bottom:16px;">
+                        {{ message }}
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
             <div class="driver-summary">
                 <div class="summary-box">
-                    <h3>24</h3>
+                    <h3>{{ driver_stats.total_drivers }}</h3>
                     <p>Tổng tài xế</p>
                 </div>
 
                 <div class="summary-box">
-                    <h3>18</h3>
+                    <h3>{{ driver_stats.active_drivers }}</h3>
                     <p>Đang hoạt động</p>
                 </div>
 
                 <div class="summary-box">
-                    <h3>4</h3>
+                    <h3>{{ driver_stats.resting_drivers }}</h3>
                     <p>Đang nghỉ</p>
                 </div>
 
                 <div class="summary-box">
-                    <h3>2</h3>
+                    <h3>{{ driver_stats.high_risk_drivers }}</h3>
                     <p>Nguy cơ cao</p>
                 </div>
             </div>
 
             <div class="page-actions">
                 <div class="filter-group">
-                    <input type="text" placeholder="Tìm tên tài xế...">
+                    <input type="text" id="driver-search" placeholder="Tìm tên tài xế...">
 
-                    <select>
-                        <option>Tất cả xe</option>
-                        <option>51A-12345</option>
-                        <option>51B-67890</option>
-                        <option>60C-45678</option>
+                    <!-- Option xe/ca được đổ tự động từ dữ liệu thật bằng drivers.js -->
+                    <select id="filter-vehicle">
+                        <option value="">Tất cả xe</option>
                     </select>
 
-                    <select>
-                        <option>Tất cả ca</option>
-                        <option>Ca sáng</option>
-                        <option>Ca chiều</option>
-                        <option>Ca đêm</option>
+                    <select id="filter-shift">
+                        <option value="">Tất cả ca</option>
                     </select>
 
-                    <select>
-                        <option>Tất cả trạng thái</option>
-                        <option>Hoạt động</option>
-                        <option>Cảnh báo</option>
-                        <option>Nguy hiểm</option>
+                    <select id="filter-status">
+                        <option value="">Tất cả trạng thái</option>
+                        <option value="active">Hoạt động</option>
+                        <option value="suspended">Tạm nghỉ</option>
+                        <option value="inactive">Ngừng hoạt động</option>
                     </select>
                 </div>
 
@@ -129,7 +135,10 @@
                         {% for driver in drivers %}
                         {% set shift = driver.current_shift %}
                         {% set vehicle = shift.vehicles if shift and shift.vehicles else none %}
-                        <tr>
+                        <tr data-name="{{ (driver.full_name or '') | lower }}"
+                            data-vehicle="{{ vehicle.plate_number if vehicle else 'Chưa gán' }}"
+                            data-shift="{{ (shift.shift_name or 'Ca làm việc') if shift else 'Chưa gán' }}"
+                            data-status="{{ driver.status or '' }}">
                             <td>
                                 <div class="driver-info">
                                     <div class="driver-avatar">
@@ -166,9 +175,14 @@
                             </td>
                             <td><span class="badge badge-warning">0 lần</span></td>
                             <td>
-                                <button class="btn-small btn-view" type="button">Xem</button>
-                                <button class="btn-small btn-edit" type="button">Sửa</button>
-                                <button class="btn-small btn-delete" type="button">Xóa</button>
+                                <a class="btn-small btn-view" href="{{ url_for('driver_detail', driver_id=driver.id) }}">Xem</a>
+                                <a class="btn-small btn-edit" href="{{ url_for('edit_driver', driver_id=driver.id) }}">Sửa</a>
+                                <form method="POST"
+                                      action="{{ url_for('remove_driver', driver_id=driver.id) }}"
+                                      style="display:inline;"
+                                      onsubmit="return confirm('Xóa tài xế {{ driver.full_name }}?');">
+                                    <button class="btn-small btn-delete" type="submit">Xóa</button>
+                                </form>
                             </td>
                         </tr>
                         {% else %}
@@ -189,6 +203,7 @@
 </div>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/logout.css') }}">
 <script src="{{ url_for('static', filename='js/logout.js') }}"></script>
+<script src="{{ url_for('static', filename='js/drivers.js') }}"></script>
 
 <div class="logout-modal" id="logoutModal">
 
