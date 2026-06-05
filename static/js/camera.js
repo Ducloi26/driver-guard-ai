@@ -25,6 +25,94 @@ function setBadge(element, text, className) {
     element.className = `badge ${className}`;
 }
 
+const AI_STATUS_MAP = {
+    "EYES OPEN":   { text: "Mở",     css: "status-success" },
+    "EYES CLOSED": { text: "Nhắm",   css: "status-danger"  },
+    "NO FACE":     { text: "--",      css: ""               },
+    "NORMAL":      { text: "Bình thường", css: "status-success" },
+    "MOUTH OPEN":  { text: "Mở",     css: "status-warning" },
+    "YAWNING":     { text: "Ngáp",   css: "status-danger"  },
+    "HEAD DOWN":   { text: "Cúi",    css: "status-danger"  },
+};
+
+const DROWSY_LEVEL_MAP = {
+    "NORMAL":          { text: "Thấp",  css: "status-success" },
+    "TIRED":           { text: "Trung bình", css: "status-warning" },
+    "DROWSY":          { text: "Cao",   css: "status-danger"  },
+    "HEAD DOWN ALERT": { text: "Cao",   css: "status-danger"  },
+};
+
+function setStatusBox(id, mapped) {
+    const box = document.getElementById(id);
+    if (!box) return;
+    box.querySelector("strong").textContent = mapped.text;
+    box.className = "status-box " + mapped.css;
+}
+
+let aiLogEntries = [];
+
+function updateAIStatus(ai) {
+    if (!ai) return;
+
+    const eye = AI_STATUS_MAP[ai.eye_status] || AI_STATUS_MAP["NO FACE"];
+    const mouth = AI_STATUS_MAP[ai.mouth_status] || AI_STATUS_MAP["NORMAL"];
+    const head = AI_STATUS_MAP[ai.head_status] || AI_STATUS_MAP["NORMAL"];
+    const level = DROWSY_LEVEL_MAP[ai.drowsy_status] || DROWSY_LEVEL_MAP["NORMAL"];
+
+    setStatusBox("aiEyeStatus", eye);
+    setStatusBox("aiMouthStatus", mouth);
+    setStatusBox("aiHeadStatus", head);
+    setStatusBox("aiAlertLevel", level);
+
+    const now = new Date().toLocaleTimeString("vi-VN", { hour12: false });
+    let newEntry = null;
+
+    if (ai.eye_status === "EYES CLOSED") {
+        newEntry = { title: "Phát hiện nhắm mắt", detail: `${now} - EAR: ${ai.ear ?? "--"}` };
+    } else if (ai.mouth_status === "YAWNING") {
+        newEntry = { title: "Phát hiện ngáp", detail: `${now} - MAR: ${ai.mar ?? "--"}` };
+    } else if (ai.head_status === "HEAD DOWN") {
+        newEntry = { title: "Phát hiện cúi đầu", detail: `${now} - Đầu cúi xuống` };
+    } else if (ai.drowsy_status === "DROWSY" || ai.drowsy_status === "TIRED") {
+        newEntry = { title: "Cảnh báo buồn ngủ", detail: `${now} - ${ai.drowsy_status}` };
+    }
+
+    if (newEntry) {
+        aiLogEntries.unshift(newEntry);
+        if (aiLogEntries.length > 10) aiLogEntries.length = 10;
+        renderAILog();
+    }
+}
+
+function createLogItem(title, detail) {
+    const item = document.createElement("div");
+    item.className = "log-item";
+    const strong = document.createElement("strong");
+    strong.textContent = title;
+    const time = document.createElement("div");
+    time.className = "log-time";
+    time.textContent = detail;
+    item.appendChild(strong);
+    item.appendChild(time);
+    return item;
+}
+
+function renderAILog() {
+    const logList = document.getElementById("aiLogList");
+    if (!logList) return;
+
+    logList.replaceChildren();
+
+    if (aiLogEntries.length === 0) {
+        logList.appendChild(createLogItem("Chưa có dữ liệu", "Bắt đầu camera để theo dõi"));
+        return;
+    }
+
+    for (const e of aiLogEntries) {
+        logList.appendChild(createLogItem(e.title, e.detail));
+    }
+}
+
 function updateCameraPanel(data) {
     const driverName = document.getElementById("cameraDriverName");
     const driverAvatar = document.getElementById("cameraDriverAvatar");
@@ -38,6 +126,8 @@ function updateCameraPanel(data) {
     const confidenceChip = document.getElementById("cameraConfidenceChip");
     const vehicleChip = document.getElementById("cameraVehicleChip");
     const statusChip = document.getElementById("cameraStatusChip");
+
+    updateAIStatus(data.ai);
 
     if (data.status === "RECOGNIZED") {
         driverName.textContent = data.driver_name;
@@ -115,18 +205,8 @@ function stopStatusPolling() {
 }
 
 function startCamera() {
-    const driverSelect = document.getElementById("driverSelect");
-    const driverId = driverSelect ? driverSelect.value : "";
-
-    if (!driverId) {
-        alert("Vui lòng chọn tài xế trước khi bật camera");
-        return;
-    }
-
     fetch("/start_camera", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ driver_id: driverId })
     })
     .then(async response => {
         const data = await response.json();
@@ -138,7 +218,6 @@ function startCamera() {
     .then(data => {
         cameraImg.src = "/video_feed?t=" + new Date().getTime();
         startStatusPolling();
-        alert(`Đã bắt đầu camera. Đã tải ${data.known_faces || 0} khuôn mặt đăng ký.`);
     })
     .catch(error => {
         console.error("Lỗi startCamera:", error);
@@ -155,6 +234,8 @@ function stopCamera() {
         cameraImg.src = "";
         stopStatusPolling();
         refreshCameraStatus();
+        aiLogEntries = [];
+        renderAILog();
         alert("Đã dừng camera");
     })
     .catch(error => {

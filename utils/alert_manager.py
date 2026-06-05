@@ -13,7 +13,7 @@ from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 
-from database import add_alert, count_recent_alerts, get_driver_by_id
+from database import add_alert, count_recent_alerts, get_driver_by_id, update_alert_sent_status
 from utils.logger import setup_logger
 from utils.telegram_bot import format_alert_message, send_text_alert, send_photo_alert
 from utils.email_sender import send_email_alert, send_email_with_image
@@ -80,10 +80,12 @@ def _capture_evidence(frame, driver_id: str, alert_type: str) -> str | None:
 
 
 def _send_notifications(driver_name: str, alert_type: str, count: int,
-                        vehicle: str, ear: float, mar: float, image_path: str):
+                        vehicle: str, ear: float, mar: float, image_path: str,
+                        alert_id: str = None):
     """
     Gửi Telegram + Email trong thread riêng.
     Hàm này được gọi từ threading.Thread, không block camera.
+    Sau khi gửi thành công, cập nhật sent_to_manager = true trong DB.
     """
     message = format_alert_message(
         driver_name=driver_name,
@@ -96,14 +98,26 @@ def _send_notifications(driver_name: str, alert_type: str, count: int,
 
     subject = f"[DriverGuard AI] Canh bao vi pham - {driver_name}"
 
-    if image_path:
-        send_photo_alert(image_path, message)
-        send_email_with_image(subject=subject, body=message, image_path=image_path)
-    else:
-        send_text_alert(message)
-        send_email_alert(subject=subject, body=message)
+    telegram_ok = False
+    email_ok = False
+    try:
+        if image_path:
+            telegram_ok = bool(send_photo_alert(image_path, message))
+            email_ok = bool(send_email_with_image(subject=subject, body=message, image_path=image_path))
+        else:
+            telegram_ok = bool(send_text_alert(message))
+            email_ok = bool(send_email_alert(subject=subject, body=message))
+    except Exception as e:
+        logger.error(f"Gửi thông báo thất bại cho {driver_name}: {e}")
 
-    logger.info(f"Đã gửi thông báo escalation cho {driver_name}")
+    sent_ok = telegram_ok or email_ok
+    if sent_ok:
+        logger.info(f"Đã gửi thông báo escalation cho {driver_name} (telegram={telegram_ok}, email={email_ok})")
+    else:
+        logger.error(f"Gửi thông báo thất bại hoàn toàn cho {driver_name} (telegram={telegram_ok}, email={email_ok})")
+
+    if alert_id:
+        update_alert_sent_status(alert_id, sent_ok)
 
 
 def process_violation(
@@ -158,11 +172,12 @@ def process_violation(
     if shift_id:
         alert_data["shift_id"] = shift_id
 
-    success, msg = add_alert(alert_data)
+    success, result_msg = add_alert(alert_data)
     if not success:
-        logger.error(f"Lưu alert DB thất bại: {msg}")
+        logger.error(f"Lưu alert DB thất bại: {result_msg}")
         return
 
+    alert_id = result_msg if success else None
     _mark_alert_saved(driver_id, alert_type)
 
     # --- 3. Đếm vi phạm trong 5 phút ---
@@ -194,7 +209,7 @@ def process_violation(
         # Gửi Telegram + Email trong thread riêng
         notify_thread = threading.Thread(
             target=_send_notifications,
-            args=(driver_name, alert_type, count, vehicle, ear, mar, image_path),
+            args=(driver_name, alert_type, count, vehicle, ear, mar, image_path, alert_id),
             daemon=True,
         )
         notify_thread.start()

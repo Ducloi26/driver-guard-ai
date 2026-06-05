@@ -83,13 +83,6 @@
                     </div>
 
                     <div class="camera-actions">
-                        <select id="driverSelect" style="padding:10px 14px; border-radius:8px; border:1px solid #444; background:#1e1e2e; color:#fff; font-size:14px; min-width:200px;">
-                            <option value="">-- Chọn tài xế --</option>
-                            {% for driver in drivers %}
-                            <option value="{{ driver.id }}">{{ driver.full_name }} ({{ driver.driver_code or 'N/A' }})</option>
-                            {% endfor %}
-                        </select>
-
                         <button class="btn-main" onclick="startCamera()">
                             Bắt đầu camera
                         </button>
@@ -152,24 +145,24 @@
                         <div class="card-title">Trạng thái AI</div>
 
                         <div class="ai-status-grid">
-                            <div class="status-box status-danger">
+                            <div class="status-box" id="aiEyeStatus">
                                 <span>Mắt</span>
-                                <strong>Nhắm</strong>
+                                <strong>--</strong>
                             </div>
 
-                            <div class="status-box status-warning">
+                            <div class="status-box" id="aiMouthStatus">
                                 <span>Miệng</span>
-                                <strong>Ngáp</strong>
+                                <strong>--</strong>
                             </div>
 
-                            <div class="status-box status-warning">
+                            <div class="status-box" id="aiHeadStatus">
                                 <span>Đầu</span>
-                                <strong>Cúi</strong>
+                                <strong>--</strong>
                             </div>
 
-                            <div class="status-box status-danger">
+                            <div class="status-box" id="aiAlertLevel">
                                 <span>Mức độ</span>
-                                <strong>Cao</strong>
+                                <strong>--</strong>
                             </div>
                         </div>
                     </div>
@@ -177,20 +170,10 @@
                     <div class="card">
                         <div class="card-title">Log realtime</div>
 
-                        <div class="log-list">
+                        <div class="log-list" id="aiLogList">
                             <div class="log-item">
-                                <strong>Phát hiện nhắm mắt lâu</strong>
-                                <div class="log-time">18:20:11 - EAR dưới ngưỡng</div>
-                            </div>
-
-                            <div class="log-item">
-                                <strong>Phát hiện ngáp</strong>
-                                <div class="log-time">18:20:34 - MAR vượt ngưỡng</div>
-                            </div>
-
-                            <div class="log-item">
-                                <strong>Cảnh báo lần 3</strong>
-                                <div class="log-time">18:21:02 - Chuẩn bị gửi quản lý</div>
+                                <strong>Chưa có dữ liệu</strong>
+                                <div class="log-time">Bắt đầu camera để theo dõi</div>
                             </div>
                         </div>
                     </div>

@@ -1,7 +1,9 @@
 # Virtual environments
 venv/
+venv*/
 .venv/
 __pycache__/
+**/__pycache__/
 *.pyc
 *.pyo
 *.egg-info/
@@ -37,3 +39,16 @@ models/*.h5
 models/*.onnx
 models/*.pt
 models/*.pth
+*.pkl
+*.pickle
+
+# Node
+node_modules/
+
+# Docs/Plans
+docs/
+
+# Misc
+*.bak
+*.tmp
+.claude/

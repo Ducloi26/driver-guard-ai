@@ -1018,10 +1018,8 @@ def add_shift(shift_data: dict) -> tuple[bool, str]:
 
 def get_current_shift_by_driver(driver_id: str) -> dict | None:
     """
-    Lấy ca/xe mới nhất của một tài xế.
-
-    Phần nhận diện khuôn mặt chỉ trả về driver_id. Hàm này giúp app.py lấy thêm
-    biển số xe và ca làm việc để hiển thị trên màn Camera AI.
+    Lấy ca đang hoạt động hôm nay của tài xế.
+    Ưu tiên: ca active ngày hôm nay > ca mới nhất nếu không có ca active.
     """
     if not driver_id:
         return None
@@ -1029,11 +1027,27 @@ def get_current_shift_by_driver(driver_id: str) -> dict | None:
     try:
         supabase = get_supabase_client()
         company_id = get_default_company_id()
+        today = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh")).date().isoformat()
 
         response = (
             supabase
             .table("shifts")
-            .select("id, shift_name, work_date, start_time, end_time, status, vehicles(plate_number, vehicle_type)")
+            .select("id, shift_name, work_date, start_time, end_time, status, vehicle_id, vehicles(id, plate_number, vehicle_type)")
+            .eq("company_id", company_id)
+            .eq("driver_id", driver_id)
+            .eq("status", "active")
+            .eq("work_date", today)
+            .limit(1)
+            .execute()
+        )
+
+        if response.data:
+            return response.data[0]
+
+        fallback = (
+            supabase
+            .table("shifts")
+            .select("id, shift_name, work_date, start_time, end_time, status, vehicle_id, vehicles(id, plate_number, vehicle_type)")
             .eq("company_id", company_id)
             .eq("driver_id", driver_id)
             .order("work_date", desc=True)
@@ -1041,8 +1055,8 @@ def get_current_shift_by_driver(driver_id: str) -> dict | None:
             .execute()
         )
 
-        if response.data:
-            return response.data[0]
+        if fallback.data:
+            return fallback.data[0]
 
         return None
 
@@ -1138,13 +1152,25 @@ def add_alert(alert_data: dict) -> tuple[bool, str]:
         )
 
         if response.data:
-            return True, "Lưu cảnh báo thành công"
+            alert_id = response.data[0].get("id")
+            return True, alert_id
         else:
             return False, "Không thể lưu cảnh báo"
 
     except Exception as e:
         logger.error(f"add_alert() lỗi: {e}")
         return False, "Lỗi hệ thống khi lưu cảnh báo"
+
+
+def update_alert_sent_status(alert_id: str, sent: bool = True) -> None:
+    """Cập nhật trạng thái sent_to_manager cho alert đã gửi escalation."""
+    if not alert_id:
+        return
+    try:
+        supabase = get_supabase_client()
+        supabase.table("alerts").update({"sent_to_manager": sent}).eq("id", alert_id).execute()
+    except Exception as e:
+        logger.error(f"update_alert_sent_status({alert_id}) lỗi: {e}")
 
 
 def count_recent_alerts(driver_id: str, minutes: int = 5) -> int:

@@ -14,7 +14,6 @@ import logging
 from math import sqrt
 
 import cv2
-import mediapipe as mp
 import numpy as np
 
 from database import (
@@ -26,23 +25,9 @@ from database import (
 
 logger = logging.getLogger(__name__)
 
-# Haar Cascade có sẵn trong OpenCV, không cần cài thêm thư viện nặng.
-# Đây là lựa chọn ổn cho demo local; sau này có thể thay bằng DeepFace/ArcFace.
-FACE_CASCADE_PATH = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
-face_detector = cv2.CascadeClassifier(FACE_CASCADE_PATH)
-mp_face_mesh = mp.solutions.face_mesh
-face_mesh_encoder = mp_face_mesh.FaceMesh(
-    static_image_mode=True,
-    max_num_faces=1,
-    refine_landmarks=True,
-    min_detection_confidence=0.5,
-)
-
-# Kích thước chuẩn để biến khuôn mặt thành vector cố định.
-# 64x64 = 4096 chiều, đủ nhẹ để lưu JSONB trong Supabase cho demo.
-EMBEDDING_SIZE = (64, 64)
 DEEPFACE_MODEL_NAME = "Facenet512"
-DEEPFACE_DETECTOR_BACKEND = "opencv"
+DEEPFACE_DETECTOR_BACKEND = "retinaface"
+DEEPFACE_EMBEDDING_DIM = 512
 
 
 def decode_image_bytes(image_bytes: bytes):
@@ -62,48 +47,32 @@ def decode_image_bytes(image_bytes: bytes):
     return cv2.imdecode(image_array, cv2.IMREAD_COLOR)
 
 
-def detect_face(image_bgr):
+def preprocess_for_recognition(image_bgr):
     """
-    Phát hiện và cắt khuôn mặt lớn nhất trong ảnh.
-
-    Với ảnh đăng ký tài xế, thường chỉ có một khuôn mặt. Nếu có nhiều mặt,
-    lấy mặt lớn nhất vì đó thường là chủ thể chính.
-
-    Args:
-        image_bgr: ảnh OpenCV dạng BGR.
-
-    Returns:
-        numpy.ndarray | None: vùng ảnh khuôn mặt, hoặc None nếu không thấy mặt.
+    Tiền xử lý ảnh trước khi đưa vào DeepFace:
+      - Cân bằng sáng bằng CLAHE (tốt hơn equalizeHist trong điều kiện sáng không đều)
+      - Giảm noise nhẹ
     """
     if image_bgr is None:
         return None
 
-    gray = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2GRAY)
-    faces = face_detector.detectMultiScale(
-        gray,
-        scaleFactor=1.1,
-        minNeighbors=5,
-        minSize=(80, 80),
-    )
+    lab = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2LAB)
+    l_channel, a_channel, b_channel = cv2.split(lab)
 
-    if len(faces) == 0:
-        return None
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    l_channel = clahe.apply(l_channel)
 
-    x, y, w, h = max(faces, key=lambda face: face[2] * face[3])
+    lab = cv2.merge([l_channel, a_channel, b_channel])
+    result = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
 
-    # Nới khung một chút để lấy đủ vùng mặt, tránh crop quá sát mắt/cằm.
-    padding = int(0.18 * max(w, h))
-    x1 = max(x - padding, 0)
-    y1 = max(y - padding, 0)
-    x2 = min(x + w + padding, image_bgr.shape[1])
-    y2 = min(y + h + padding, image_bgr.shape[0])
+    result = cv2.fastNlMeansDenoisingColored(result, None, 3, 3, 7, 21)
 
-    return image_bgr[y1:y2, x1:x2]
+    return result
 
 
 def normalize_vector(vector) -> list[float] | None:
     """
-    Chuẩn hóa vector về độ dài 1 để cosine similarity ổn định hơn.
+    Chuẩn hóa vector về độ dài 1 (L2 norm) để cosine similarity ổn định.
     """
     if vector is None:
         return None
@@ -116,13 +85,15 @@ def normalize_vector(vector) -> list[float] | None:
     return (np_vector / norm).astype(float).tolist()
 
 
-def extract_deepface_embedding(image_bgr) -> list[float] | None:
+def extract_deepface_embedding(image_bgr, retry_with_preprocess: bool = True) -> list[float] | None:
     """
-    Tạo face embedding bằng DeepFace Facenet512.
+    Tạo face embedding bằng DeepFace Facenet512 + RetinaFace detector.
 
-    DeepFace cho vector nhận diện khuôn mặt tốt hơn nhiều so với pixel/landmark
-    thủ công. Import DeepFace trong hàm để app.py không bị khởi động chậm nếu
-    chưa dùng đến nhận diện.
+    Pipeline:
+      1. Thử nhận diện trực tiếp (enforce_detection=True)
+      2. Nếu lỗi và retry_with_preprocess=True → tiền xử lý ảnh rồi thử lại
+      3. Nếu vẫn lỗi → thử enforce_detection=False (chấp nhận ảnh không rõ mặt)
+         nhưng kiểm tra confidence của detector trước khi chấp nhận
     """
     if image_bgr is None:
         return None
@@ -137,157 +108,103 @@ def extract_deepface_embedding(image_bgr) -> list[float] | None:
             enforce_detection=True,
         )
 
-        if not representations:
-            return None
+        if representations:
+            face_confidence = representations[0].get("face_confidence", 0)
+            if face_confidence >= 0.90:
+                return normalize_vector(representations[0].get("embedding"))
 
-        return normalize_vector(representations[0].get("embedding"))
+            logger.info(f"DeepFace face_confidence thấp: {face_confidence:.2f}, bỏ qua")
 
     except Exception as e:
-        logger.warning(f"extract_deepface_embedding() fallback vì lỗi: {e}")
-        return None
+        logger.debug(f"DeepFace lần 1 thất bại: {e}")
 
+    if retry_with_preprocess:
+        try:
+            from deepface import DeepFace
 
-def extract_landmark_embedding(image_bgr) -> list[float] | None:
-    """
-    Tạo vector hình học khuôn mặt bằng MediaPipe FaceMesh.
+            preprocessed = preprocess_for_recognition(image_bgr)
+            if preprocessed is None:
+                return None
 
-    Vector này dựa trên vị trí landmark, đã chuẩn hóa theo tâm mũi và khoảng
-    cách hai mắt. Nó ổn hơn pixel thô khi ảnh đăng ký và webcam khác ánh sáng,
-    khác crop hoặc hơi lệch góc.
-    """
-    if image_bgr is None:
-        return None
+            representations = DeepFace.represent(
+                img_path=preprocessed,
+                model_name=DEEPFACE_MODEL_NAME,
+                detector_backend=DEEPFACE_DETECTOR_BACKEND,
+                enforce_detection=True,
+            )
 
-    rgb_image = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
-    results = face_mesh_encoder.process(rgb_image)
+            if representations:
+                face_confidence = representations[0].get("face_confidence", 0)
+                if face_confidence >= 0.85:
+                    return normalize_vector(representations[0].get("embedding"))
 
-    if not results.multi_face_landmarks:
-        return None
+                logger.info(f"DeepFace sau preprocess, confidence vẫn thấp: {face_confidence:.2f}")
 
-    landmarks = results.multi_face_landmarks[0].landmark
-    if len(landmarks) < 264:
-        return None
+        except Exception as e:
+            logger.debug(f"DeepFace lần 2 (preprocess) thất bại: {e}")
 
-    nose = landmarks[1]
-    left_eye = landmarks[33]
-    right_eye = landmarks[263]
+    try:
+        from deepface import DeepFace
 
-    eye_distance = sqrt(
-        (right_eye.x - left_eye.x) ** 2
-        + (right_eye.y - left_eye.y) ** 2
-        + (right_eye.z - left_eye.z) ** 2
-    )
+        representations = DeepFace.represent(
+            img_path=image_bgr,
+            model_name=DEEPFACE_MODEL_NAME,
+            detector_backend=DEEPFACE_DETECTOR_BACKEND,
+            enforce_detection=False,
+        )
 
-    if eye_distance == 0:
-        return None
+        if representations:
+            face_confidence = representations[0].get("face_confidence", 0)
+            if face_confidence >= 0.80:
+                return normalize_vector(representations[0].get("embedding"))
 
-    vector = []
-    # Dùng 468 landmark chuẩn. Nếu refine_landmarks trả thêm iris landmarks,
-    # bỏ phần thêm để vector đăng ký và vector webcam luôn cùng chiều.
-    for point in landmarks[:468]:
-        vector.extend([
-            (point.x - nose.x) / eye_distance,
-            (point.y - nose.y) / eye_distance,
-            (point.z - nose.z) / eye_distance,
-        ])
+            logger.warning(f"DeepFace enforce_detection=False nhưng confidence quá thấp: {face_confidence:.2f}")
 
-    np_vector = np.array(vector, dtype="float32")
-    norm = np.linalg.norm(np_vector)
-    if norm == 0:
-        return None
+    except Exception as e:
+        logger.warning(f"DeepFace hoàn toàn thất bại: {e}")
 
-    return (np_vector / norm).astype(float).tolist()
-
-
-def extract_pixel_embedding(image_bgr) -> list[float] | None:
-    """
-    Tạo vector khuôn mặt từ pixel ảnh.
-
-    Bản demo dùng OpenCV:
-      - detect khuôn mặt
-      - chuyển grayscale
-      - resize 64x64
-      - cân bằng sáng bằng equalizeHist
-      - chuẩn hóa vector về độ dài 1
-
-    Sau này nếu nhóm dùng DeepFace/ArcFace, chỉ cần thay logic trong hàm này,
-    các hàm còn lại và database.py vẫn giữ nguyên.
-    """
-    face = detect_face(image_bgr)
-    if face is None:
-        return None
-
-    gray_face = cv2.cvtColor(face, cv2.COLOR_BGR2GRAY)
-    resized = cv2.resize(gray_face, EMBEDDING_SIZE)
-    equalized = cv2.equalizeHist(resized)
-
-    vector = equalized.astype("float32").flatten()
-    vector = (vector - np.mean(vector)) / (np.std(vector) + 1e-6)
-
-    norm = np.linalg.norm(vector)
-    if norm == 0:
-        return None
-
-    normalized = vector / norm
-    return normalized.astype(float).tolist()
-
-
-def extract_face_embedding(image_bgr) -> list[float] | None:
-    """
-    Tạo face embedding ưu tiên bằng DeepFace Facenet512.
-
-    Fallback:
-      - FaceMesh landmark embedding nếu DeepFace lỗi.
-      - Pixel embedding nếu cả DeepFace và FaceMesh đều không tìm được mặt.
-    """
-    deepface_embedding = extract_deepface_embedding(image_bgr)
-    if deepface_embedding is not None:
-        return deepface_embedding
-
-    landmark_embedding = extract_landmark_embedding(image_bgr)
-    if landmark_embedding is not None:
-        return landmark_embedding
-
-    return extract_pixel_embedding(image_bgr)
+    return None
 
 
 def cosine_similarity(vector_a: list[float], vector_b: list[float]) -> float:
     """
-    Tính độ giống nhau giữa 2 face embedding.
+    Tính độ giống nhau giữa 2 face embedding bằng numpy (nhanh hơn pure Python).
 
     Kết quả càng gần 1 nghĩa là càng giống nhau.
+    Trả -1.0 nếu vector không hợp lệ hoặc khác kích thước.
     """
     if not vector_a or not vector_b or len(vector_a) != len(vector_b):
         return -1.0
 
-    dot_product = sum(a * b for a, b in zip(vector_a, vector_b))
-    norm_a = sqrt(sum(a * a for a in vector_a))
-    norm_b = sqrt(sum(b * b for b in vector_b))
+    a = np.array(vector_a, dtype="float32")
+    b = np.array(vector_b, dtype="float32")
+
+    norm_a = np.linalg.norm(a)
+    norm_b = np.linalg.norm(b)
 
     if norm_a == 0 or norm_b == 0:
         return -1.0
 
-    return dot_product / (norm_a * norm_b)
+    return float(np.dot(a, b) / (norm_a * norm_b))
 
 
 def compare_face_embedding(current_embedding: list[float], known_faces: list[dict]) -> dict:
     """
     So sánh khuôn mặt hiện tại với danh sách tài xế đã có encoding.
-
-    Args:
-        current_embedding: vector khuôn mặt từ frame camera.
-        known_faces: list tài xế từ get_drivers_with_face_encoding().
-
-    Returns:
-        dict: tài xế giống nhất và điểm similarity.
+    Chỉ so sánh với embedding cùng kích thước (cùng loại model).
     """
     best_match = {
         "driver": None,
         "similarity": -1.0,
     }
 
+    current_dim = len(current_embedding) if current_embedding else 0
+
     for driver in known_faces or []:
         saved_embedding = driver.get("face_encoding")
+        if not saved_embedding or len(saved_embedding) != current_dim:
+            continue
+
         similarity = cosine_similarity(current_embedding, saved_embedding)
 
         if similarity > best_match["similarity"]:
@@ -299,16 +216,25 @@ def compare_face_embedding(current_embedding: list[float], known_faces: list[dic
     return best_match
 
 
-def recognize_driver_from_frame(frame_bgr, known_faces: list[dict], threshold: float = 0.93) -> dict:
+def extract_face_embedding(image_bgr) -> list[float] | None:
+    """
+    Tạo face embedding chỉ bằng DeepFace Facenet512.
+
+    Không fallback sang loại embedding khác (landmark/pixel) vì vector khác
+    kích thước sẽ không so sánh được với nhau → gây false negative.
+    """
+    return extract_deepface_embedding(image_bgr, retry_with_preprocess=True)
+
+
+def recognize_driver_from_frame(frame_bgr, known_faces: list[dict], threshold: float = 0.87) -> dict:
     """
     Nhận diện tài xế từ một frame camera.
 
     Args:
         frame_bgr: frame từ OpenCV camera.
         known_faces: danh sách tài xế đã có face_encoding.
-        threshold: ngưỡng nhận diện. Dưới ngưỡng sẽ trả UNKNOWN_DRIVER.
-                   Với FaceMesh landmark embedding, ngưỡng nên cao hơn pixel
-                   embedding vì nhiều khuôn mặt có hình học tổng thể khá giống.
+        threshold: ngưỡng cosine similarity cho Facenet512.
+                   0.87 cân bằng giữa chính xác và không quá khắt khe.
 
     Returns:
         dict: trạng thái nhận diện và thông tin tài xế nếu match.
@@ -322,29 +248,25 @@ def recognize_driver_from_frame(frame_bgr, known_faces: list[dict], threshold: f
         }
 
     best_match = compare_face_embedding(current_embedding, known_faces)
-    if best_match["driver"] and best_match["similarity"] >= threshold:
+    similarity = best_match["similarity"]
+
+    if best_match["driver"] and similarity >= threshold:
         return {
             "status": "RECOGNIZED",
             "driver": best_match["driver"],
-            "similarity": best_match["similarity"],
+            "similarity": similarity,
         }
 
     return {
         "status": "UNKNOWN_DRIVER",
         "driver": None,
-        "similarity": best_match["similarity"],
+        "similarity": max(similarity, 0.0),
     }
 
 
 def build_face_encoding_for_driver(driver: dict) -> tuple[bool, str]:
     """
     Tạo và lưu face_encoding cho một tài xế từ avatar_path.
-
-    Args:
-        driver (dict): một record từ get_drivers_for_face_encoding().
-
-    Returns:
-        tuple[bool, str]: kết quả xử lý và thông báo.
     """
     driver_id = driver.get("id")
     avatar_path = driver.get("avatar_path")
@@ -359,14 +281,15 @@ def build_face_encoding_for_driver(driver: dict) -> tuple[bool, str]:
     if face_encoding is None:
         return False, "Không phát hiện được khuôn mặt rõ ràng trong ảnh"
 
+    if len(face_encoding) != DEEPFACE_EMBEDDING_DIM:
+        return False, f"Embedding sai kích thước: {len(face_encoding)} (cần {DEEPFACE_EMBEDDING_DIM})"
+
     return update_driver_face_encoding(driver_id, face_encoding)
 
 
 def build_missing_face_encodings() -> dict:
     """
     Tạo face_encoding cho các tài xế đã có ảnh nhưng chưa có encoding.
-
-    Hàm này dùng để chạy thủ công khi quản lý vừa upload ảnh tài xế.
     """
     drivers = get_drivers_for_face_encoding()
     result = {
@@ -401,9 +324,7 @@ def build_missing_face_encodings() -> dict:
 def rebuild_all_face_encodings() -> dict:
     """
     Tạo lại face_encoding cho tất cả tài xế có ảnh đăng ký.
-
-    Dùng khi nhóm thay đổi thuật toán embedding. Ví dụ: từ pixel embedding
-    sang FaceMesh landmark embedding. Hàm này sẽ ghi đè face_encoding cũ.
+    BẮT BUỘC chạy khi đổi model hoặc detector backend.
     """
     drivers = get_drivers_for_face_encoding()
     result = {

@@ -3,6 +3,7 @@ import cv2
 import os
 
 os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
+os.environ.setdefault("TF_USE_LEGACY_KERAS", "1")
 
 import mediapipe as mp
 import time
@@ -30,7 +31,9 @@ from database import (
     get_drivers_with_face_encoding,
     get_current_shift_by_driver,
 )
-from models.face_recognition_model import recognize_driver_from_frame
+from models.face_recognition_model import recognize_driver_from_frame, rebuild_all_face_encodings, build_face_encoding_for_driver
+from utils.alert_manager import process_violation
+from utils.logger import setup_logger
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "driver-guard-ai-dev-secret")
@@ -41,7 +44,7 @@ camera_running = False
 last_frame = None
 known_face_drivers = []
 face_recognition_frame_counter = 0
-FACE_RECOGNITION_THRESHOLD = 0.72
+FACE_RECOGNITION_THRESHOLD = 0.87
 RECOGNITION_CONFIRM_FRAMES = 3
 UNKNOWN_CONFIRM_FRAMES = 5
 FACE_RECOGNITION_INTERVAL_SECONDS = 1.5
@@ -102,16 +105,14 @@ def calculate_mar(mouth_points):
 def detect_head_down(face_landmarks, width, height):
     nose = face_landmarks.landmark[1]
     chin = face_landmarks.landmark[152]
+    forehead = face_landmarks.landmark[10]
 
-    nose_y = int(nose.y * height)
-    chin_y = int(chin.y * height)
-
-    distance_nose_chin = chin_y - nose_y
-
-    if distance_nose_chin < 70:
-        return True
-    else:
+    nose_chin = abs(chin.y - nose.y)
+    forehead_y = abs(chin.y - forehead.y)
+    if forehead_y == 0:
         return False
+    ratio = nose_chin / forehead_y
+    return ratio < 0.38
 LEFT_EYE_INDEXES = [33, 160, 158, 133, 153, 144]
 RIGHT_EYE_INDEXES = [362, 385, 387, 263, 373, 380]
 MOUTH_INDEXES = [61, 81, 13, 291, 311, 14]
@@ -119,16 +120,12 @@ HEAD_POSE_INDEXES = [1, 152, 33, 263, 61, 291]
 MAR_THRESHOLD = 0.3
 EAR_THRESHOLD = 0.22
 
-# Nhắm mắt liên tục khoảng 30 giây nếu camera ~20 FPS
-DROWSY_FRAME_THRESHOLD = 600
+EYES_CLOSED_ALERT_SECONDS = 3.0
+BLINK_MAX_SECONDS = 0.5
 
-# Nhắm/mở mắt ngắn thì tính là 1 lần blink
-BLINK_FRAME_THRESHOLD = 3
-
-# 20 lần blink trong 30 giây = 1 dấu hiệu buồn ngủ
 BLINK_WARNING_THRESHOLD = 15
 
-closed_counter = 0
+eyes_closed_start_time = None
 blink_counter = 0
 tired_event_counter = 0
 blink_start_time = time.time()
@@ -143,6 +140,48 @@ HEAD_DOWN_THRESHOLD = 2
 head_down_start_time = 0
 head_down_detected = False
 alert_triggered = False
+current_driver_id = None
+
+latest_ai_state = {
+    "eye_status": "NO FACE",
+    "mouth_status": "NORMAL",
+    "head_status": "NORMAL",
+    "drowsy_status": "NORMAL",
+    "ear": None,
+    "mar": None,
+    "blink_counter": 0,
+    "tired_event_counter": 0,
+    "yawn_counter": 0,
+}
+
+
+def reset_detection_state():
+    global eyes_closed_start_time, blink_counter, tired_event_counter, blink_start_time
+    global mouth_open_detected, mouth_open_time, yawn_counter
+    global head_down_start_time, head_down_detected, alert_triggered
+    global latest_ai_state
+
+    eyes_closed_start_time = None
+    blink_counter = 0
+    tired_event_counter = 0
+    blink_start_time = time.time()
+    mouth_open_detected = False
+    mouth_open_time = 0
+    yawn_counter = 0
+    head_down_start_time = 0
+    head_down_detected = False
+    alert_triggered = False
+    latest_ai_state = {
+        "eye_status": "NO FACE",
+        "mouth_status": "NORMAL",
+        "head_status": "NORMAL",
+        "drowsy_status": "NORMAL",
+        "ear": None,
+        "mar": None,
+        "blink_counter": 0,
+        "tired_event_counter": 0,
+        "yawn_counter": 0,
+    }
 
 
 def refresh_known_face_drivers():
@@ -182,6 +221,7 @@ def stabilize_recognition(raw_result: dict) -> dict:
       - Nhờ vậy panel không bị nhảy loạn khi tài xế quay mặt hoặc chớp sáng.
     """
     global pending_recognition_key, pending_recognition_count, last_recognition_result
+    global current_driver_id
 
     current_key = get_recognition_key(raw_result)
 
@@ -194,11 +234,20 @@ def stabilize_recognition(raw_result: dict) -> dict:
     if raw_result.get("status") == "RECOGNIZED":
         if pending_recognition_count >= RECOGNITION_CONFIRM_FRAMES:
             last_recognition_result = raw_result
+            driver = raw_result.get("driver")
+            if driver:
+                new_id = driver.get("id")
+                if new_id != current_driver_id:
+                    reset_detection_state()
+                current_driver_id = new_id
         return last_recognition_result
 
     if raw_result.get("status") in ("UNKNOWN_DRIVER", "NO_FACE"):
         if pending_recognition_count >= UNKNOWN_CONFIRM_FRAMES:
             last_recognition_result = raw_result
+            if current_driver_id is not None:
+                reset_detection_state()
+            current_driver_id = None
         return last_recognition_result
 
     last_recognition_result = raw_result
@@ -371,6 +420,7 @@ def build_camera_status_payload() -> dict:
             "shift_name": shift.get("shift_name") if shift else "Chưa gán",
             "shift_time": shift_time,
             "known_faces": len(known_face_drivers),
+            "ai": latest_ai_state,
         }
 
     if status == "UNKNOWN_DRIVER":
@@ -384,6 +434,7 @@ def build_camera_status_payload() -> dict:
             "shift_name": "--",
             "shift_time": "--",
             "known_faces": len(known_face_drivers),
+            "ai": latest_ai_state,
         }
 
     return {
@@ -396,6 +447,7 @@ def build_camera_status_payload() -> dict:
         "shift_name": "--",
         "shift_time": "--",
         "known_faces": len(known_face_drivers),
+        "ai": latest_ai_state,
     }
 
 
@@ -415,11 +467,12 @@ def to_camera_text(value) -> str:
 
 def generate_frames():
     global camera_stream, camera_running, last_frame
-    global closed_counter, blink_counter, tired_event_counter, blink_start_time
+    global eyes_closed_start_time, blink_counter, tired_event_counter, blink_start_time
     global mouth_open_detected, mouth_open_time, yawn_counter
     global head_down_start_time, head_down_detected
     global alert_triggered
     global face_recognition_frame_counter, last_recognition_result
+    global latest_ai_state
 
     while camera_running:
         if camera_stream is None or not camera_stream.isOpened():
@@ -509,14 +562,19 @@ def generate_frames():
 
                         if ear < EAR_THRESHOLD:
                             eye_status = "EYES CLOSED"
-                            closed_counter += 1
+                            if eyes_closed_start_time is None:
+                                eyes_closed_start_time = current_time
+                            elif current_time - eyes_closed_start_time >= EYES_CLOSED_ALERT_SECONDS:
+                                drowsy_status = "DROWSY"
+                                send_alert = True
+                                alert_triggered = True
                         else:
                             eye_status = "EYES OPEN"
-
-                            if 0 < closed_counter <= BLINK_FRAME_THRESHOLD:
-                                blink_counter += 1
-
-                            closed_counter = 0
+                            if eyes_closed_start_time is not None:
+                                closed_duration = current_time - eyes_closed_start_time
+                                if closed_duration < BLINK_MAX_SECONDS:
+                                    blink_counter += 1
+                            eyes_closed_start_time = None
 
                         if current_time - blink_start_time >= 30:
                             if blink_counter >= BLINK_WARNING_THRESHOLD:
@@ -525,12 +583,7 @@ def generate_frames():
                             blink_counter = 0
                             blink_start_time = current_time
 
-                        if closed_counter >= DROWSY_FRAME_THRESHOLD:
-                            drowsy_status = "DROWSY"
-                            send_alert = True
-                            alert_triggered = True
-
-                        elif tired_event_counter >= 2 or yawn_counter >= 3:
+                        if drowsy_status == "NORMAL" and (tired_event_counter >= 2 or yawn_counter >= 3):
                             drowsy_status = "TIRED"
                             send_alert = True
                             alert_triggered = True
@@ -630,7 +683,7 @@ def generate_frames():
                     cv2.putText(ai_frame, "SEND ALERT TO MANAGER", (20, 340),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
 
-                    if send_alert and current_driver_id:
+                    if send_alert and current_driver_id and last_recognition_result.get("status") == "RECOGNIZED":
                         if drowsy_status == "HEAD DOWN ALERT":
                             alert_type = "HEAD_DOWN"
                             alert_level = "medium"
@@ -647,6 +700,8 @@ def generate_frames():
                             alert_type = "DROWSY"
                             alert_level = "medium"
 
+                        shift = last_recognition_result.get("shift")
+
                         process_violation(
                             driver_id=current_driver_id,
                             alert_type=alert_type,
@@ -655,8 +710,33 @@ def generate_frames():
                             mar=mar,
                             head_status=head_status,
                             frame=original_frame,
+                            vehicle_id=shift.get("vehicle_id") if shift else None,
+                            shift_id=shift.get("id") if shift else None,
                         )
+                latest_ai_state = {
+                    "eye_status": eye_status,
+                    "mouth_status": mouth_status,
+                    "head_status": head_status,
+                    "drowsy_status": drowsy_status,
+                    "ear": round(ear, 3) if ear is not None else None,
+                    "mar": round(mar, 3) if mar is not None else None,
+                    "blink_counter": blink_counter,
+                    "tired_event_counter": tired_event_counter,
+                    "yawn_counter": yawn_counter,
+                }
+
             else:
+                latest_ai_state = {
+                    "eye_status": "NO FACE",
+                    "mouth_status": "NORMAL",
+                    "head_status": "NORMAL",
+                    "drowsy_status": "NORMAL",
+                    "ear": None,
+                    "mar": None,
+                    "blink_counter": blink_counter,
+                    "tired_event_counter": tired_event_counter,
+                    "yawn_counter": yawn_counter,
+                }
                 cv2.putText(ai_frame, "NO FACE DETECTED", (20, 80),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
 
@@ -686,8 +766,7 @@ def login():
 
 @app.route("/camera")
 def camera():
-    drivers_list = get_all_drivers()
-    return render_template("camera.html", drivers=drivers_list)
+    return render_template("camera.html")
 
 
 @app.route("/start_camera", methods=["POST"])
@@ -696,21 +775,31 @@ def start_camera():
     global pending_recognition_key, pending_recognition_count
     global latest_recognition_frame
 
-    if not camera_running:
-        refresh_known_face_drivers()
-        face_recognition_frame_counter = 0
-        pending_recognition_key = None
-        pending_recognition_count = 0
-        latest_recognition_frame = None
-        last_recognition_result = {
-            "status": "NOT_READY" if known_face_drivers else "NO_REGISTERED_FACE",
-            "driver": None,
-            "similarity": 0.0,
-            "shift": None,
-        }
-        camera_stream = cv2.VideoCapture(0)
-        camera_running = True
-        start_recognition_worker()
+    if camera_running:
+        return jsonify({
+            "status": "already_running",
+            "known_faces": len(known_face_drivers),
+        })
+
+    refresh_known_face_drivers()
+    face_recognition_frame_counter = 0
+    pending_recognition_key = None
+    pending_recognition_count = 0
+    latest_recognition_frame = None
+    last_recognition_result = {
+        "status": "NOT_READY" if known_face_drivers else "NO_REGISTERED_FACE",
+        "driver": None,
+        "similarity": 0.0,
+        "shift": None,
+    }
+    camera_stream = cv2.VideoCapture(0)
+    if not camera_stream.isOpened():
+        camera_stream.release()
+        camera_stream = None
+        return jsonify({"status": "error", "message": "Không thể mở camera"}), 503
+
+    camera_running = True
+    start_recognition_worker()
 
     return jsonify({
         "status": "started",
@@ -896,6 +985,15 @@ def add_driver():
         success, message, driver_id = add_driver_and_get_id(form_data)
 
         if success:
+            if avatar_path:
+                enc_ok, enc_msg = build_face_encoding_for_driver(
+                    {"id": driver_id, "avatar_path": avatar_path}
+                )
+                if enc_ok:
+                    message = f"{message}. Đã tạo face encoding"
+                else:
+                    message = f"{message}. Chưa tạo được face encoding: {enc_msg}"
+
             # Nếu form có chọn xe, tạo luôn một ca làm việc để gán tài xế với xe.
             # Thông tin gán ca nằm ở bảng shifts, không lưu trực tiếp trong drivers.
             shift_data = {
@@ -926,5 +1024,16 @@ def add_driver():
     return render_template("add_driver.html", vehicles=vehicles_list)
 
 
+@app.route("/rebuild_face_encodings", methods=["POST"])
+def rebuild_face_encodings():
+    admin_key = os.getenv("ADMIN_SECRET_KEY", "")
+    request_key = request.headers.get("X-Admin-Key", "")
+    if not admin_key or request_key != admin_key:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    result = rebuild_all_face_encodings()
+    return jsonify(result)
+
+
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=os.environ.get("FLASK_DEBUG", "0") == "1")
