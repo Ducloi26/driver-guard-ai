@@ -396,6 +396,7 @@ async function analyzeCurrentFrame() {
     }
 }
 
+
 async function startCamera() {
     try {
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
