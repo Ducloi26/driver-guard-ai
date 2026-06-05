@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <title>Chỉnh sửa tài xế - DriverGuard AI</title>
 
-    <link rel="stylesheet" href="./static/css/global.css">
-    <link rel="stylesheet" href="./static/css/layout.css">
-    <link rel="stylesheet" href="./static/css/dashboard.css">
-    <link rel="stylesheet" href="./static/css/add_driver.css">
-    <link rel="stylesheet" href="./static/css/logout.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/add_driver.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/logout.css') }}">
 </head>
 <body>
 
@@ -24,14 +24,14 @@
         </div>
 
         <nav class="menu">
-            <a href="./dashboard.html">📊 Dashboard</a>
-            <a href="./drivers.html" class="active">👥 Tài xế</a>
-            <a href="./vehicles.html">🚘 Quản lý xe</a>
-            <a href="./shifts.html">⏱ Ca làm việc</a>
-            <a href="./camera.html">📷 Camera AI</a>
-            <a href="./alerts.html">⚠️ Lịch sử cảnh báo</a>
-            <a href="./stats.html">📈 Thống kê</a>
-            <a href="./settings.html">⚙️ Cài đặt</a>
+            <a href="{{ url_for('dashboard') }}">📊 Dashboard</a>
+            <a href="{{ url_for('drivers') }}" class="active">👥 Tài xế</a>
+            <a href="{{ url_for('vehicles') }}">🚘 Quản lý xe</a>
+            <a href="{{ url_for('shifts') }}">⏱ Ca làm việc</a>
+            <a href="{{ url_for('camera') }}">📷 Camera AI</a>
+            <a href="{{ url_for('alerts') }}">⚠️ Lịch sử cảnh báo</a>
+            <a href="{{ url_for('stats') }}">📈 Thống kê</a>
+            <a href="{{ url_for('settings') }}">⚙️ Cài đặt</a>
             <a href="./login.html">🚪 Đăng xuất</a>
         </nav>
     </aside>
@@ -58,7 +58,7 @@
 
         <section class="content">
 
-            <form>
+            <form method="POST" action="{{ url_for('edit_driver', driver_id=driver.id) }}">
 
                 <div class="card form-card">
                     <h2>Thông tin tài xế</h2>
@@ -67,52 +67,52 @@
                     <div class="form-grid">
                         <div class="form-group">
                             <label>Họ và tên</label>
-                            <input type="text" name="full_name" value="Nguyễn Văn A" placeholder="Nguyễn Văn A" required>
+                            <input type="text" name="full_name" value="{{ driver.full_name or '' }}" placeholder="Nhập họ và tên" required>
                         </div>
 
                         <div class="form-group">
                             <label>Mã tài xế</label>
-                            <input type="text" name="driver_code" value="TX001" placeholder="DRV-001">
+                            <input type="text" name="driver_code" value="{{ driver.driver_code or '' }}" placeholder="DRV-001">
                         </div>
 
                         <div class="form-group">
                             <label>Số điện thoại</label>
-                            <input type="text" name="phone" value="0901234567" placeholder="0901234567">
+                            <input type="text" name="phone" value="{{ driver.phone or '' }}" placeholder="0901234567">
                         </div>
 
                         <div class="form-group">
                             <label>Email</label>
-                            <input type="email" name="email" value="nguyenvana@driverguard.vn" placeholder="driver@email.com">
+                            <input type="email" name="email" value="{{ driver.email or '' }}" placeholder="driver@email.com">
                         </div>
 
                         <div class="form-group">
                             <label>Ngày sinh</label>
-                            <input type="date" name="date_of_birth" value="1995-05-12">
+                            <input type="date" name="date_of_birth" value="{{ driver.date_of_birth or '' }}">
                         </div>
 
                         <div class="form-group">
                             <label>Số giấy phép lái xe</label>
-                            <input type="text" name="license_number" value="GPLX-123456789" placeholder="GPLX-123456789">
+                            <input type="text" name="license_number" value="{{ driver.license_number or '' }}" placeholder="GPLX-123456789">
                         </div>
 
                         <div class="form-group">
                             <label>Trạng thái</label>
                             <select name="status">
-                                <option value="active" selected>Đang hoạt động</option>
-                                <option value="suspended">Tạm nghỉ</option>
-                                <option value="inactive">Ngừng hoạt động</option>
+                                <option value="active" {% if driver.status == 'active' %}selected{% endif %}>Đang hoạt động</option>
+                                <option value="suspended" {% if driver.status == 'suspended' %}selected{% endif %}>Tạm nghỉ</option>
+                                <option value="inactive" {% if driver.status == 'inactive' %}selected{% endif %}>Ngừng hoạt động</option>
                             </select>
                         </div>
                     </div>
 
                     <div class="form-group">
                         <label>Địa chỉ</label>
-                        <input type="text" name="address" value="Buôn Ma Thuột, Đắk Lắk" placeholder="Nhập địa chỉ tài xế">
+                        <input type="text" name="address" value="{{ driver.address or '' }}" placeholder="Nhập địa chỉ tài xế">
                     </div>
 
                     <div class="form-actions">
-                        <a href="./drivers.html" class="btn-cancel">Hủy</a>
-                        <button type="button" class="btn-main btn-save">Lưu thay đổi</button>
+                        <a href="{{ url_for('drivers') }}" class="btn-cancel">Hủy</a>
+                        <button type="submit" class="btn-main btn-save">Lưu thay đổi</button>
                     </div>
                 </div>
 
@@ -160,7 +160,7 @@
 
 </div>
 
-<script src="./static/js/logout.js"></script>
+<script src="{{ url_for('static', filename='js/logout.js') }}"></script>
 
 </body>
 </html>

@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <title>Chi tiết tài xế - DriverGuard AI</title>
 
-    <link rel="stylesheet" href="./static/css/global.css">
-    <link rel="stylesheet" href="./static/css/layout.css">
-    <link rel="stylesheet" href="./static/css/dashboard.css">
-    <link rel="stylesheet" href="./static/css/drivers.css">
-    <link rel="stylesheet" href="./static/css/logout.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/drivers.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/logout.css') }}">
 </head>
 <body>
 
@@ -24,14 +24,14 @@
         </div>
 
         <nav class="menu">
-            <a href="./dashboard.html">📊 Dashboard</a>
-            <a href="./drivers.html" class="active">👥 Tài xế</a>
-            <a href="./vehicles.html">🚘 Quản lý xe</a>
-            <a href="./shifts.html">⏱ Ca làm việc</a>
-            <a href="./camera.html">📷 Camera AI</a>
-            <a href="./alerts.html">⚠️ Lịch sử cảnh báo</a>
-            <a href="./stats.html">📈 Thống kê</a>
-            <a href="./settings.html">⚙️ Cài đặt</a>
+            <a href="{{ url_for('dashboard') }}">📊 Dashboard</a>
+            <a href="{{ url_for('drivers') }}" class="active">👥 Tài xế</a>
+            <a href="{{ url_for('vehicles') }}">🚘 Quản lý xe</a>
+            <a href="{{ url_for('shifts') }}">⏱ Ca làm việc</a>
+            <a href="{{ url_for('camera') }}">📷 Camera AI</a>
+            <a href="{{ url_for('alerts') }}">⚠️ Lịch sử cảnh báo</a>
+            <a href="{{ url_for('stats') }}">📈 Thống kê</a>
+            <a href="{{ url_for('settings') }}">⚙️ Cài đặt</a>
             <a href="./login.html">🚪 Đăng xuất</a>
         </nav>
     </aside>
@@ -61,48 +61,33 @@
             <div class="card">
 
                 <div class="driver-info" style="margin-bottom:20px;">
-                    <div class="driver-avatar">NA</div>
+                    {% if driver.avatar_url %}
+                        <img src="{{ driver.avatar_url }}" class="driver-avatar" alt="">
+                    {% else %}
+                        <div class="driver-avatar">{{ (driver.full_name or 'TX')[:2] | upper }}</div>
+                    {% endif %}
 
                     <div>
-                        <div class="driver-name">Nguyễn Văn A</div>
-                        <div class="driver-id">ID: TX001</div>
+                        <div class="driver-name">{{ driver.full_name or 'Chưa có tên' }}</div>
+                        <div class="driver-id">ID: {{ driver.driver_code or driver.id }}</div>
                     </div>
                 </div>
 
                 <table class="table">
                     <tbody>
-                        <tr>
-                            <th style="width:220px;">Họ và tên</th>
-                            <td>Nguyễn Văn A</td>
-                        </tr>
-                        <tr>
-                            <th>Mã tài xế</th>
-                            <td>TX001</td>
-                        </tr>
-                        <tr>
-                            <th>Số điện thoại</th>
-                            <td>0901234567</td>
-                        </tr>
-                        <tr>
-                            <th>Email</th>
-                            <td>nguyenvana@driverguard.vn</td>
-                        </tr>
-                        <tr>
-                            <th>Ngày sinh</th>
-                            <td>12/05/1995</td>
-                        </tr>
-                        <tr>
-                            <th>Số giấy phép lái xe</th>
-                            <td>GPLX-123456789</td>
-                        </tr>
-                        <tr>
-                            <th>Địa chỉ</th>
-                            <td>Buôn Ma Thuột, Đắk Lắk</td>
-                        </tr>
+                        <tr><th style="width:220px;">Họ và tên</th><td>{{ driver.full_name or '--' }}</td></tr>
+                        <tr><th>Mã tài xế</th><td>{{ driver.driver_code or '--' }}</td></tr>
+                        <tr><th>Số điện thoại</th><td>{{ driver.phone or '--' }}</td></tr>
+                        <tr><th>Email</th><td>{{ driver.email or '--' }}</td></tr>
+                        <tr><th>Ngày sinh</th><td>{{ driver.date_of_birth or '--' }}</td></tr>
+                        <tr><th>Số giấy phép lái xe</th><td>{{ driver.license_number or '--' }}</td></tr>
+                        <tr><th>Địa chỉ</th><td>{{ driver.address or '--' }}</td></tr>
                         <tr>
                             <th>Trạng thái</th>
                             <td>
-                                <span class="badge badge-success">Hoạt động</span>
+                                {% if driver.status == 'active' %}<span class="badge badge-success">Hoạt động</span>
+                                {% elif driver.status == 'suspended' %}<span class="badge badge-warning">Tạm nghỉ</span>
+                                {% else %}<span class="badge badge-danger">Ngừng hoạt động</span>{% endif %}
                             </td>
                         </tr>
                     </tbody>
@@ -114,29 +99,18 @@
 
                 <table class="table">
                     <tbody>
-                        <tr>
-                            <th style="width:220px;">Tên ca</th>
-                            <td>Ca sáng</td>
-                        </tr>
-                        <tr>
-                            <th>Thời gian</th>
-                            <td>06:00 - 14:00</td>
-                        </tr>
-                        <tr>
-                            <th>Ngày làm</th>
-                            <td>05/06/2026</td>
-                        </tr>
-                        <tr>
-                            <th>Xe phụ trách</th>
-                            <td>47A-12345</td>
-                        </tr>
+                        {% set vehicle = shift.vehicles if shift else None %}
+                        <tr><th style="width:220px;">Tên ca</th><td>{{ shift.shift_name if shift else 'Chưa gán' }}</td></tr>
+                        <tr><th>Thời gian</th><td>{{ (shift.start_time if shift else '--:--') or '--:--' }} - {{ (shift.end_time if shift else '--:--') or '--:--' }}</td></tr>
+                        <tr><th>Ngày làm</th><td>{{ shift.work_date if shift else '--' }}</td></tr>
+                        <tr><th>Xe phụ trách</th><td>{{ vehicle.plate_number if vehicle else 'Chưa gán' }}</td></tr>
                     </tbody>
                 </table>
             </div>
 
             <div class="form-actions" style="margin-top:18px;">
-                <a href="./drivers.html" class="btn-cancel">Quay lại</a>
-                <a href="./add_driver.html" class="btn-main btn-save">Chỉnh sửa</a>
+                <a href="{{ url_for('drivers') }}" class="btn-cancel">Quay lại</a>
+                <a href="{{ url_for('edit_driver', driver_id=driver.id) }}" class="btn-main btn-save">Chỉnh sửa</a>
             </div>
 
         </section>
@@ -181,7 +155,7 @@
 
 </div>
 
-<script src="./static/js/logout.js"></script>
+<script src="{{ url_for('static', filename='js/logout.js') }}"></script>
 
 </body>
 </html>
