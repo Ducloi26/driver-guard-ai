@@ -36,19 +36,28 @@
             <h2>Đăng nhập hệ thống</h2>
             <p>Quản lý an toàn tài xế bằng AI</p>
 
-            <label>Email / Tên đăng nhập</label>
-            <input type="text" placeholder="admin@driverguard.vn">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+              {% if messages %}
+                {% for category, message in messages %}
+                  <div class="flash flash-{{ category }}" style="color:#c0392b;margin-bottom:12px;">{{ message }}</div>
+                {% endfor %}
+              {% endif %}
+            {% endwith %}
 
-            <label>Mật khẩu</label>
-            <input type="password" placeholder="••••••••">
+            <form method="post" action="{{ url_for('login') }}">
+                <label>Tên đăng nhập</label>
+                <input type="text" name="username" placeholder="admin" required>
 
-            <div class="auth-row">
-                <label class="remember">
-                    <input type="checkbox" checked>
-                    Ghi nhớ đăng nhập
-                </label>
-                <a href="#">Quên mật khẩu?</a>
-            </div>
+                <label>Mật khẩu</label>
+                <input type="password" name="password" placeholder="••••••••" required>
+
+                <div class="auth-row">
+                    <label class="remember">
+                        <input type="checkbox" checked>
+                        Ghi nhớ đăng nhập
+                    </label>
+                    <a href="#">Quên mật khẩu?</a>
+                </div>
 
             <a href="./dashboard.html" class="btn-main">Đăng nhập</a>
 

@@ -1,38 +1,20 @@
-<link rel="stylesheet" href="./static/css/logout.css">
+<link rel="stylesheet" href="./static/css/logout.css" />
 <script src="./static/js/logout.js"></script>
 
 <div class="logout-modal" id="logoutModal">
+  <div class="logout-box">
+    <div class="logout-icon">⎋</div>
 
-    <div class="logout-box">
+    <h2>Đăng xuất?</h2>
 
-        <div class="logout-icon">
-            ⎋
-        </div>
+    <p>Bạn có chắc muốn đăng xuất khỏi hệ thống DriverGuard AI?</p>
 
-        <h2>Đăng xuất?</h2>
+    <div class="logout-actions">
+      <button class="btn-logout-cancel" onclick="closeLogoutModal()">
+        Hủy
+      </button>
 
-        <p>
-            Bạn có chắc muốn đăng xuất khỏi hệ thống DriverGuard AI?
-        </p>
-
-        <div class="logout-actions">
-
-            <button
-                class="btn-logout-cancel"
-                onclick="closeLogoutModal()"
-            >
-                Hủy
-            </button>
-
-            <a
-                href="./login.html"
-                class="btn-logout"
-            >
-                Đăng xuất
-            </a>
-
-        </div>
-
+      <a href="./login.html" class="btn-logout"> Đăng xuất </a>
     </div>
-
+  </div>
 </div>

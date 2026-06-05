@@ -1,281 +1,270 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="vi">
-<head>
-    <meta charset="UTF-8">
+  <head>
+    <meta charset="UTF-8" />
     <title>Cài đặt - DriverGuard AI</title>
 
-    <link rel="stylesheet" href="./static/css/global.css">
-    <link rel="stylesheet" href="./static/css/layout.css">
-    <link rel="stylesheet" href="./static/css/dashboard.css">
-    <link rel="stylesheet" href="./static/css/settings.css">
-    <link rel="stylesheet" href="./static/css/logout.css">
-</head>
-<body>
-
-<div class="app">
-
-    <aside class="sidebar">
+    <link rel="stylesheet" href="./static/css/global.css" />
+    <link rel="stylesheet" href="./static/css/layout.css" />
+    <link rel="stylesheet" href="./static/css/dashboard.css" />
+    <link rel="stylesheet" href="./static/css/settings.css" />
+    <link rel="stylesheet" href="./static/css/logout.css" />
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar">
         <div class="logo">
-            <div class="logo-icon">🛡</div>
-            <div>
-                <h2>DriverGuard</h2>
-                <span>AI SAFETY</span>
-            </div>
+          <div class="logo-icon">🛡</div>
+          <div>
+            <h2>DriverGuard</h2>
+            <span>AI SAFETY</span>
+          </div>
         </div>
 
         <nav class="menu">
-            <a href="./dashboard.html">📊 Dashboard</a>
-            <a href="./drivers.html">👥 Tài xế</a>
-            <a href="./vehicles.html">🚘 Quản lý xe</a>
-            <a href="./shifts.html">⏱ Ca làm việc</a>
-            <a href="./camera.html">📷 Camera AI</a>
-            <a href="./alerts.html">⚠️ Lịch sử cảnh báo</a>
-            <a href="./stats.html">📈 Thống kê</a>
-            <a href="./settings.html" class="active">⚙️ Cài đặt</a>
-            <a href="./login.html">🚪 Đăng xuất</a>
+          <a href="./dashboard.html">📊 Dashboard</a>
+          <a href="./drivers.html">👥 Tài xế</a>
+          <a href="./vehicles.html">🚘 Quản lý xe</a>
+          <a href="./shifts.html">⏱ Ca làm việc</a>
+          <a href="./camera.html">📷 Camera AI</a>
+          <a href="./alerts.html">⚠️ Lịch sử cảnh báo</a>
+          <a href="./stats.html">📈 Thống kê</a>
+          <a href="./settings.html" class="active">⚙️ Cài đặt</a>
+          <a href="./login.html">🚪 Đăng xuất</a>
         </nav>
-    </aside>
+      </aside>
 
-    <main class="main">
-
+      <main class="main">
         <header class="header">
-            <div>
-                <h1>Cài đặt hệ thống</h1>
-                <p>Thiết lập ngưỡng AI, cảnh báo, giao diện và thông tin thông báo</p>
-            </div>
+          <div>
+            <h1>Cài đặt hệ thống</h1>
+            <p>
+              Thiết lập ngưỡng AI, cảnh báo, giao diện và thông tin thông báo
+            </p>
+          </div>
 
-            <div class="header-right">
-                <input class="search-box" placeholder="Tìm kiếm...">
-                <div class="user-box">
-                    <div class="avatar">A</div>
-                    <div>
-                        <strong>Admin System</strong>
-                        <p>Quản trị viên</p>
-                    </div>
-                </div>
+          <div class="header-right">
+            <input class="search-box" placeholder="Tìm kiếm..." />
+            <div class="user-box">
+              <div class="avatar">A</div>
+              <div>
+                <strong>Admin System</strong>
+                <p>Quản trị viên</p>
+              </div>
             </div>
+          </div>
         </header>
 
         <section class="content">
+          <div class="settings-layout">
+            <div class="settings-card">
+              <h2>Cài đặt AI phát hiện buồn ngủ</h2>
+              <p>
+                Điều chỉnh các ngưỡng nhận diện mắt, miệng và số lần cảnh báo.
+              </p>
 
-            <div class="settings-layout">
-
-                <div class="settings-card">
-                    <h2>Cài đặt AI phát hiện buồn ngủ</h2>
-                    <p>Điều chỉnh các ngưỡng nhận diện mắt, miệng và số lần cảnh báo.</p>
-
-                    <div class="setting-row">
-                        <div class="setting-group">
-                            <label>Ngưỡng EAR</label>
-                            <input type="number" value="0.25" step="0.01">
-                        </div>
-
-                        <div class="setting-group">
-                            <label>Ngưỡng MAR</label>
-                            <input type="number" value="0.60" step="0.01">
-                        </div>
-                    </div>
-
-                    <div class="setting-row">
-                        <div class="setting-group">
-                            <label>Thời gian nhắm mắt cảnh báo</label>
-                            <input type="text" value="2 giây">
-                        </div>
-
-                        <div class="setting-group">
-                            <label>Thời gian ngáp cảnh báo</label>
-                            <input type="text" value="1.5 giây">
-                        </div>
-                    </div>
-
-                    <div class="setting-row">
-                        <div class="setting-group">
-                            <label>Số lần cảnh báo để gửi quản lý</label>
-                            <input type="number" value="3">
-                        </div>
-
-                        <div class="setting-group">
-                            <label>Khoảng thời gian kiểm tra</label>
-                            <input type="text" value="5 phút">
-                        </div>
-                    </div>
-
-                    <div class="warning-note">
-                        Lưu ý: Ngưỡng EAR/MAR cần tinh chỉnh theo camera, ánh sáng và góc đặt camera thực tế.
-                    </div>
+              <div class="setting-row">
+                <div class="setting-group">
+                  <label>Ngưỡng EAR</label>
+                  <input type="number" value="0.25" step="0.01" />
                 </div>
 
-                <div class="settings-card">
-                    <h2>Cài đặt thông báo</h2>
-                    <p>Cấu hình Telegram hoặc Email để gửi cảnh báo đến quản lý.</p>
+                <div class="setting-group">
+                  <label>Ngưỡng MAR</label>
+                  <input type="number" value="0.60" step="0.01" />
+                </div>
+              </div>
 
-                    <div class="toggle-row">
-                        <div>
-                            <div class="toggle-title">Bật cảnh báo Telegram</div>
-                            <div class="toggle-desc">Gửi tin nhắn khi tài xế ngủ gật nhiều lần</div>
-                        </div>
-                        <div class="switch active"></div>
-                    </div>
-
-                    <div class="toggle-row">
-                        <div>
-                            <div class="toggle-title">Bật cảnh báo Email</div>
-                            <div class="toggle-desc">Gửi email cảnh báo cho chủ doanh nghiệp</div>
-                        </div>
-                        <div class="switch"></div>
-                    </div>
-
-                    <div class="setting-group">
-                        <label>Telegram Bot Token</label>
-                        <input type="password" value="123456789:ABC-SECRET-TOKEN">
-                    </div>
-
-                    <div class="setting-group">
-                        <label>Telegram Chat ID</label>
-                        <input type="text" value="-100123456789">
-                    </div>
-
-                    <div class="setting-group">
-                        <label>Email nhận cảnh báo</label>
-                        <input type="email" value="manager@driverguard.vn">
-                    </div>
-
-                    <div class="api-box">
-                        POST /api/send-alert<br>
-                        Status: Connected
-                    </div>
+              <div class="setting-row">
+                <div class="setting-group">
+                  <label>Thời gian nhắm mắt cảnh báo</label>
+                  <input type="text" value="2 giây" />
                 </div>
 
-                <div class="settings-card">
-                    <h2>Cài đặt giao diện</h2>
-                    <p>Tùy chỉnh màu sắc, chế độ hiển thị và âm thanh cảnh báo.</p>
+                <div class="setting-group">
+                  <label>Thời gian ngáp cảnh báo</label>
+                  <input type="text" value="1.5 giây" />
+                </div>
+              </div>
 
-                    <div class="setting-group">
-                        <label>Màu chủ đạo</label>
-                        <div class="color-options">
-                            <div class="color-dot blue active"></div>
-                            <div class="color-dot green"></div>
-                            <div class="color-dot purple"></div>
-                            <div class="color-dot orange"></div>
-                        </div>
-                    </div>
-
-                    <div class="setting-group">
-                        <label>Chế độ giao diện</label>
-                        <select>
-                            <option>Light mode</option>
-                            <option>Dark mode</option>
-                            <option>Tự động theo hệ thống</option>
-                        </select>
-                    </div>
-
-                    <div class="toggle-row">
-                        <div>
-                            <div class="toggle-title">Âm thanh cảnh báo</div>
-                            <div class="toggle-desc">Phát âm thanh khi phát hiện ngủ gật</div>
-                        </div>
-                        <div class="switch active"></div>
-                    </div>
-
-                    <div class="toggle-row">
-                        <div>
-                            <div class="toggle-title">Hiệu ứng neon</div>
-                            <div class="toggle-desc">Bật glow xanh neon ở các card quan trọng</div>
-                        </div>
-                        <div class="switch active"></div>
-                    </div>
+              <div class="setting-row">
+                <div class="setting-group">
+                  <label>Số lần cảnh báo để gửi quản lý</label>
+                  <input type="number" value="3" />
                 </div>
 
-                <div class="settings-card">
-                    <h2>Tài khoản & bảo mật</h2>
-                    <p>Quản lý thông tin tài khoản quản trị hệ thống.</p>
-
-                    <div class="setting-group">
-                        <label>Tên quản trị viên</label>
-                        <input type="text" value="Admin System">
-                    </div>
-
-                    <div class="setting-group">
-                        <label>Email đăng nhập</label>
-                        <input type="email" value="admin@driverguard.vn">
-                    </div>
-
-                    <div class="setting-group">
-                        <label>Số điện thoại</label>
-                        <input type="text" value="0900000000">
-                    </div>
-
-                    <div class="setting-row">
-                        <div class="setting-group">
-                            <label>Mật khẩu mới</label>
-                            <input type="password" placeholder="••••••••">
-                        </div>
-
-                        <div class="setting-group">
-                            <label>Nhập lại mật khẩu</label>
-                            <input type="password" placeholder="••••••••">
-                        </div>
-                    </div>
-
-                    <div class="toggle-row">
-                        <div>
-                            <div class="toggle-title">Xác thực 2 lớp</div>
-                            <div class="toggle-desc">Tăng bảo mật khi đăng nhập hệ thống</div>
-                        </div>
-                        <div class="switch"></div>
-                    </div>
+                <div class="setting-group">
+                  <label>Khoảng thời gian kiểm tra</label>
+                  <input type="text" value="5 phút" />
                 </div>
+              </div>
 
-                <div class="settings-actions">
-                    <button class="btn-cancel" type="button">Hủy thay đổi</button>
-                    <a href="./dashboard.html" class="btn-main btn-save">Lưu cài đặt</a>
-                </div>
-
+              <div class="warning-note">
+                Lưu ý: Ngưỡng EAR/MAR cần tinh chỉnh theo camera, ánh sáng và
+                góc đặt camera thực tế.
+              </div>
             </div>
 
+            <div class="settings-card">
+              <h2>Cài đặt thông báo</h2>
+              <p>Cấu hình Telegram hoặc Email để gửi cảnh báo đến quản lý.</p>
+
+              <div class="toggle-row">
+                <div>
+                  <div class="toggle-title">Bật cảnh báo Telegram</div>
+                  <div class="toggle-desc">
+                    Gửi tin nhắn khi tài xế ngủ gật nhiều lần
+                  </div>
+                </div>
+                <div class="switch active"></div>
+              </div>
+
+              <div class="toggle-row">
+                <div>
+                  <div class="toggle-title">Bật cảnh báo Email</div>
+                  <div class="toggle-desc">
+                    Gửi email cảnh báo cho chủ doanh nghiệp
+                  </div>
+                </div>
+                <div class="switch"></div>
+              </div>
+
+              <div class="setting-group">
+                <label>Telegram Bot Token</label>
+                <input type="password" value="123456789:ABC-SECRET-TOKEN" />
+              </div>
+
+              <div class="setting-group">
+                <label>Telegram Chat ID</label>
+                <input type="text" value="-100123456789" />
+              </div>
+
+              <div class="setting-group">
+                <label>Email nhận cảnh báo</label>
+                <input type="email" value="manager@driverguard.vn" />
+              </div>
+
+              <div class="api-box">
+                POST /api/send-alert<br />
+                Status: Connected
+              </div>
+            </div>
+
+            <div class="settings-card">
+              <h2>Cài đặt giao diện</h2>
+              <p>Tùy chỉnh màu sắc, chế độ hiển thị và âm thanh cảnh báo.</p>
+
+              <div class="setting-group">
+                <label>Màu chủ đạo</label>
+                <div class="color-options">
+                  <div class="color-dot blue active"></div>
+                  <div class="color-dot green"></div>
+                  <div class="color-dot purple"></div>
+                  <div class="color-dot orange"></div>
+                </div>
+              </div>
+
+              <div class="setting-group">
+                <label>Chế độ giao diện</label>
+                <select>
+                  <option>Light mode</option>
+                  <option>Dark mode</option>
+                  <option>Tự động theo hệ thống</option>
+                </select>
+              </div>
+
+              <div class="toggle-row">
+                <div>
+                  <div class="toggle-title">Âm thanh cảnh báo</div>
+                  <div class="toggle-desc">
+                    Phát âm thanh khi phát hiện ngủ gật
+                  </div>
+                </div>
+                <div class="switch active"></div>
+              </div>
+
+              <div class="toggle-row">
+                <div>
+                  <div class="toggle-title">Hiệu ứng neon</div>
+                  <div class="toggle-desc">
+                    Bật glow xanh neon ở các card quan trọng
+                  </div>
+                </div>
+                <div class="switch active"></div>
+              </div>
+            </div>
+
+            <div class="settings-card">
+              <h2>Tài khoản & bảo mật</h2>
+              <p>Quản lý thông tin tài khoản quản trị hệ thống.</p>
+
+              <div class="setting-group">
+                <label>Tên quản trị viên</label>
+                <input type="text" value="Admin System" />
+              </div>
+
+              <div class="setting-group">
+                <label>Email đăng nhập</label>
+                <input type="email" value="admin@driverguard.vn" />
+              </div>
+
+              <div class="setting-group">
+                <label>Số điện thoại</label>
+                <input type="text" value="0900000000" />
+              </div>
+
+              <div class="setting-row">
+                <div class="setting-group">
+                  <label>Mật khẩu mới</label>
+                  <input type="password" placeholder="••••••••" />
+                </div>
+
+                <div class="setting-group">
+                  <label>Nhập lại mật khẩu</label>
+                  <input type="password" placeholder="••••••••" />
+                </div>
+              </div>
+
+              <div class="toggle-row">
+                <div>
+                  <div class="toggle-title">Xác thực 2 lớp</div>
+                  <div class="toggle-desc">
+                    Tăng bảo mật khi đăng nhập hệ thống
+                  </div>
+                </div>
+                <div class="switch"></div>
+              </div>
+            </div>
+
+            <div class="settings-actions">
+              <button class="btn-cancel" type="button">Hủy thay đổi</button>
+              <a href="./dashboard.html" class="btn-main btn-save"
+                >Lưu cài đặt</a
+              >
+            </div>
+          </div>
         </section>
+      </main>
+    </div>
 
-    </main>
-
-</div>
-
-<div class="logout-modal" id="logoutModal">
-
-    <div class="logout-box">
-
-        <div class="logout-icon">
-            ⎋
-        </div>
+    <div class="logout-modal" id="logoutModal">
+      <div class="logout-box">
+        <div class="logout-icon">⎋</div>
 
         <h2>Đăng xuất?</h2>
 
-        <p>
-            Bạn có chắc muốn đăng xuất khỏi hệ thống DriverGuard AI?
-        </p>
+        <p>Bạn có chắc muốn đăng xuất khỏi hệ thống DriverGuard AI?</p>
 
         <div class="logout-actions">
+          <button class="btn-logout-cancel" onclick="closeLogoutModal()">
+            Hủy
+          </button>
 
-            <button
-                class="btn-logout-cancel"
-                onclick="closeLogoutModal()"
-            >
-                Hủy
-            </button>
-
-            <a
-                href="./login.html"
-                class="btn-logout"
-            >
-                Đăng xuất
-            </a>
-
+          <a href="./login.html" class="btn-logout"> Đăng xuất </a>
         </div>
-
+      </div>
     </div>
 
-</div>
-
-<script src="./static/js/logout.js"></script>
-
-</body>
+    <script src="./static/js/logout.js"></script>
+  </body>
 </html>

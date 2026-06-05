@@ -2,17 +2,25 @@
 venv/
 venv*/
 .venv/
+env/
+
+# Python
 __pycache__/
 **/__pycache__/
 *.pyc
 *.pyo
+*.pyd
 *.egg-info/
+*.egg
 dist/
 build/
+*.whl
+.eggs/
 
 # Database
 database/*.db
 *.db
+*.sqlite3
 
 # Logs
 logs/
@@ -27,11 +35,13 @@ logs/
 .vscode/
 *.swp
 *.swo
+*.code-workspace
 
 # OS
 .DS_Store
 Thumbs.db
 desktop.ini
+ehthumbs.db
 
 # Model files (large binary)
 models/*.dat
@@ -39,8 +49,24 @@ models/*.h5
 models/*.onnx
 models/*.pt
 models/*.pth
+models/*.tflite
+models/*.pb
 *.pkl
 *.pickle
+
+# Uploaded files (user avatars, images)
+static/uploads/
+
+# Flask session files
+flask_session/
+instance/
+
+# Coverage / Testing
+htmlcov/
+.coverage
+.coverage.*
+.pytest_cache/
+.tox/
 
 # Node
 node_modules/

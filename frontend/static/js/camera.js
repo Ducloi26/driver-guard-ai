@@ -50,6 +50,55 @@ function setStatusBox(id, mapped) {
     box.className = "status-box " + mapped.css;
 }
 
+// --- WP3: cảnh báo âm thanh realtime cho tài xế (Web Audio beep) ---
+let audioCtx = null;
+let alarmTimer = null;
+
+function ensureAudioContext() {
+    // Phải gọi trong một tương tác người dùng (vd click "Bắt đầu camera")
+    // để trình duyệt cho phép phát âm thanh.
+    if (!audioCtx) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (AC) audioCtx = new AC();
+    }
+    if (audioCtx && audioCtx.state === "suspended") {
+        audioCtx.resume();
+    }
+    return audioCtx;
+}
+
+function playBeep(freq = 880, durationMs = 350) {
+    const ctx = ensureAudioContext();
+    if (!ctx) return;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "square";
+    osc.frequency.value = freq;
+    gain.gain.value = 0.25;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + durationMs / 1000);
+}
+
+// Luật: chỉ kêu khi DROWSY (>=2/3 chỉ số, mức cao). Hàm thuần, dễ kiểm thử.
+function decideAlarm(drowsyStatus) {
+    return drowsyStatus === "DROWSY";
+}
+
+function startAlarm() {
+    if (alarmTimer !== null) return;  // đang kêu rồi, không chồng tiếng
+    playBeep();
+    alarmTimer = setInterval(playBeep, 800);
+}
+
+function stopAlarm() {
+    if (alarmTimer !== null) {
+        clearInterval(alarmTimer);
+        alarmTimer = null;
+    }
+}
+
 let aiLogEntries = [];
 
 function updateAIStatus(ai) {
@@ -64,6 +113,13 @@ function updateAIStatus(ai) {
     setStatusBox("aiMouthStatus", mouth);
     setStatusBox("aiHeadStatus", head);
     setStatusBox("aiAlertLevel", level);
+
+    // Còi báo cho tài xế khi phát hiện buồn ngủ mức cao (>=2/3 chỉ số).
+    if (decideAlarm(ai.drowsy_status)) {
+        startAlarm();
+    } else {
+        stopAlarm();
+    }
 
     const now = new Date().toLocaleTimeString("vi-VN", { hour12: false });
     let newEntry = null;
@@ -222,6 +278,7 @@ function stopStatusPolling() {
 }
 
 function startCamera() {
+    ensureAudioContext();  // mở khóa âm thanh trong cú click của người dùng
     fetch("/start_camera", {
         method: "POST",
     })
@@ -250,6 +307,7 @@ function stopCamera() {
     .then(data => {
         cameraImg.src = "";
         stopStatusPolling();
+        stopAlarm();
         refreshCameraStatus();
         aiLogEntries = [];
         renderAILog();

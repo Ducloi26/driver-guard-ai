@@ -93,6 +93,67 @@ def get_default_company_id() -> str:
     return company_id.strip()  # .strip() phòng trường hợp có khoảng trắng thừa
 
 
+def get_admin_by_username(username: str) -> dict | None:
+    """
+    Lấy hồ sơ quản trị theo username để xác thực đăng nhập (WP4).
+
+    Trả về dict gồm password_hash để app.py kiểm tra mật khẩu, hoặc None nếu
+    không tìm thấy / lỗi. Không raise để route đăng nhập xử lý gọn.
+    """
+    try:
+        supabase = get_supabase_client()
+        response = (
+            supabase
+            .table("profiles")
+            .select("id, company_id, username, full_name, password_hash, role")
+            .eq("username", username)
+            .limit(1)
+            .execute()
+        )
+        if response.data:
+            return response.data[0]
+        return None
+    except Exception as e:
+        logger.error(f"get_admin_by_username({username}) lỗi: {e}")
+        return None
+
+
+def create_admin(username: str, password_hash: str, full_name: str,
+                 company_id: str | None = None, role: str = "admin") -> tuple[bool, str]:
+    """
+    Tạo 1 tài khoản quản trị trong bảng profiles (dùng bởi script create_admin.py).
+
+    profiles.id không có default trong schema nên phải tự sinh UUID.
+    """
+    try:
+        if get_admin_by_username(username):
+            return False, "Username đã tồn tại"
+
+        supabase = get_supabase_client()
+        if company_id is None:
+            company_id = get_default_company_id()
+
+        response = (
+            supabase
+            .table("profiles")
+            .insert({
+                "id": str(uuid4()),
+                "company_id": company_id,
+                "username": username,
+                "password_hash": password_hash,
+                "full_name": full_name,
+                "role": role,
+            })
+            .execute()
+        )
+        if response.data:
+            return True, "Đã tạo tài khoản admin"
+        return False, "Insert thất bại"
+    except Exception as e:
+        logger.error(f"create_admin({username}) lỗi: {e}")
+        return False, str(e)
+
+
 def clean_form_data(form) -> dict:
     """
     Làm sạch dữ liệu từ HTML form trước khi insert vào DB.
@@ -1152,6 +1213,88 @@ def get_all_alerts(limit: int = 100) -> list:
     except Exception as e:
         logger.error(f"get_all_alerts() lỗi: {e}")
         return []
+
+
+def _alert_date(alert_time, vn_tz):
+    """Lấy ngày (giờ VN) từ alert_time ISO. Trả None nếu thiếu/không parse được."""
+    if not alert_time:
+        return None
+    try:
+        dt = datetime.fromisoformat(str(alert_time).replace("Z", "+00:00"))
+        if dt.tzinfo is not None:
+            dt = dt.astimezone(vn_tz)
+        return dt.date()
+    except Exception:
+        return None
+
+
+def aggregate_alert_stats(alerts: list, days: int = 7, today=None) -> dict:
+    """
+    Tổng hợp số liệu cảnh báo cho trang thống kê (hàm thuần, không đụng DB).
+
+    Args:
+        alerts: list alert (như get_all_alerts trả về, có key 'drivers').
+        days: số ngày của cửa sổ biểu đồ theo ngày.
+        today: ngày mốc (date); mặc định hôm nay theo giờ VN.
+
+    Returns:
+        dict gồm total, high_count, by_type, by_day (kèm pct), top_drivers.
+    """
+    vn_tz = ZoneInfo("Asia/Ho_Chi_Minh")
+    if today is None:
+        today = datetime.now(vn_tz).date()
+
+    types = ["DROWSY", "EYES_CLOSED", "YAWNING", "HEAD_DOWN", "UNKNOWN_DRIVER"]
+    by_type = {t: 0 for t in types}
+
+    day_dates = [today - timedelta(days=i) for i in range(days - 1, -1, -1)]
+    day_counts = {d: 0 for d in day_dates}
+
+    driver_counts = {}
+    high_count = 0
+
+    for a in alerts:
+        atype = a.get("alert_type")
+        if atype in by_type:
+            by_type[atype] += 1
+
+        if a.get("alert_level") == "high":
+            high_count += 1
+
+        d = _alert_date(a.get("alert_time"), vn_tz)
+        if d in day_counts:
+            day_counts[d] += 1
+
+        drv = a.get("drivers")
+        name = (drv.get("full_name") if isinstance(drv, dict) else None) or "Không xác định"
+        driver_counts[name] = driver_counts.get(name, 0) + 1
+
+    max_day = max(day_counts.values(), default=0)
+    by_day = [
+        {
+            "label": d.strftime("%d/%m"),
+            "count": day_counts[d],
+            "pct": round(day_counts[d] / max_day * 100) if max_day else 0,
+        }
+        for d in day_dates
+    ]
+
+    top_drivers = sorted(driver_counts.items(), key=lambda kv: kv[1], reverse=True)[:5]
+    top_drivers = [{"name": n, "count": c} for n, c in top_drivers]
+
+    return {
+        "total": len(alerts),
+        "high_count": high_count,
+        "by_type": by_type,
+        "by_day": by_day,
+        "top_drivers": top_drivers,
+    }
+
+
+def get_alert_statistics(days: int = 7) -> dict:
+    """Lấy alert từ DB rồi tổng hợp thành số liệu cho trang /stats."""
+    alerts = get_all_alerts(limit=1000)
+    return aggregate_alert_stats(alerts, days=days)
 
 
 def add_alert(alert_data: dict) -> tuple[bool, str]:
