@@ -13,10 +13,10 @@ supabase
 python-dotenv
 werkzeug
 
-deepface==0.0.100
-retina-face==0.0.17
+deepface
+retina-face
 
 tensorflow==2.21.0
 tf-keras
-protobuf>=3.20,<6
+
 ml-dtypes
