@@ -1342,8 +1342,13 @@ def analyze_frame():
 
 @app.route("/debug-env")
 def debug_env():
+    import os
+
     return {
-        "message": "debug version 999"
+        "SUPABASE_URL_EXISTS": bool(os.getenv("SUPABASE_URL")),
+        "SERVICE_ROLE_EXISTS": bool(os.getenv("SUPABASE_SERVICE_ROLE_KEY")),
+        "ANON_KEY_EXISTS": bool(os.getenv("SUPABASE_ANON_KEY")),
+        "COMPANY_ID_EXISTS": bool(os.getenv("DEFAULT_COMPANY_ID")),
     }
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
