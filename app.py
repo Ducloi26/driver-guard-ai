@@ -1,6 +1,9 @@
 from flask import Flask, render_template, Response, jsonify, request, redirect, url_for, flash
+from flask_cors import CORS
 import cv2
 import os
+import base64
+import numpy as np
 
 os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
 os.environ.setdefault("TF_USE_LEGACY_KERAS", "1")
@@ -46,6 +49,15 @@ app = Flask(
     template_folder=os.path.join(BASE_DIR, "frontend"),
     static_folder=os.path.join(BASE_DIR, "frontend", "static")
 )
+CORS(app, resources={
+    r"/api/*": {
+        "origins": [
+            "https://driver-guard-ai-six.vercel.app",
+            "http://127.0.0.1:5000",
+            "http://localhost:5000"
+        ]
+    }
+})
 
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "driver-guard-ai-dev-secret")
 logger = setup_logger(__name__)
@@ -1106,10 +1118,6 @@ def rebuild_face_encodings():
 
 
 
-import base64
-import numpy as np
-
-
 @app.route("/api/analyze_frame", methods=["POST"])
 def analyze_frame():
     try:
@@ -1117,10 +1125,7 @@ def analyze_frame():
         image_data = data.get("image")
 
         if not image_data:
-            return jsonify({
-                "status": "error",
-                "message": "Thiếu dữ liệu ảnh"
-            }), 400
+            return jsonify({"status": "error", "message": "Thiếu dữ liệu ảnh"}), 400
 
         if "," in image_data:
             image_data = image_data.split(",", 1)[1]
@@ -1130,10 +1135,7 @@ def analyze_frame():
         frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
 
         if frame is None:
-            return jsonify({
-                "status": "error",
-                "message": "Không đọc được frame"
-            }), 400
+            return jsonify({"status": "error", "message": "Không đọc được frame"}), 400
 
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         results = face_mesh.process(rgb_frame)
@@ -1145,90 +1147,72 @@ def analyze_frame():
 
         ear = None
         mar = None
-        left_ear = None
-        right_ear = None
+        landmarks = []
 
         if results.multi_face_landmarks:
             face_landmarks = results.multi_face_landmarks[0]
             height, width, _ = frame.shape
 
-            if detect_head_down(face_landmarks, width, height):
-                head_status = "HEAD DOWN"
-            else:
-                head_status = "NORMAL"
+            for lm in face_landmarks.landmark:
+                landmarks.append({
+                    "x": lm.x,
+                    "y": lm.y
+                })
+
+            head_status = "HEAD DOWN" if detect_head_down(face_landmarks, width, height) else "NORMAL"
 
             left_eye = []
             right_eye = []
             mouth_points = []
 
             for index in LEFT_EYE_INDEXES:
-                landmark = face_landmarks.landmark[index]
-                x = int(landmark.x * width)
-                y = int(landmark.y * height)
-                left_eye.append((x, y))
+                lm = face_landmarks.landmark[index]
+                left_eye.append((int(lm.x * width), int(lm.y * height)))
 
             for index in RIGHT_EYE_INDEXES:
-                landmark = face_landmarks.landmark[index]
-                x = int(landmark.x * width)
-                y = int(landmark.y * height)
-                right_eye.append((x, y))
+                lm = face_landmarks.landmark[index]
+                right_eye.append((int(lm.x * width), int(lm.y * height)))
 
             for index in MOUTH_INDEXES:
-                landmark = face_landmarks.landmark[index]
-                x = int(landmark.x * width)
-                y = int(landmark.y * height)
-                mouth_points.append((x, y))
+                lm = face_landmarks.landmark[index]
+                mouth_points.append((int(lm.x * width), int(lm.y * height)))
 
             if len(left_eye) == 6 and len(right_eye) == 6:
                 left_ear = calculate_ear(left_eye)
                 right_ear = calculate_ear(right_eye)
                 ear = (left_ear + right_ear) / 2.0
-
-                if ear < EAR_THRESHOLD:
-                    eye_status = "EYES CLOSED"
-                    drowsy_status = "DROWSY"
-                else:
-                    eye_status = "EYES OPEN"
+                eye_status = "EYES CLOSED" if ear < EAR_THRESHOLD else "EYES OPEN"
 
             if len(mouth_points) == 6:
                 mar = calculate_mar(mouth_points)
+                mouth_status = "MOUTH OPEN" if mar > MAR_THRESHOLD else "NORMAL"
 
-                if mar > MAR_THRESHOLD:
-                    mouth_status = "MOUTH OPEN"
-                else:
-                    mouth_status = "NORMAL"
-
-            if head_status == "HEAD DOWN":
+            if eye_status == "EYES CLOSED":
+                drowsy_status = "DROWSY"
+            elif head_status == "HEAD DOWN":
                 drowsy_status = "HEAD DOWN ALERT"
-
-            if mouth_status == "MOUTH OPEN":
+            elif mouth_status == "MOUTH OPEN":
                 drowsy_status = "TIRED"
-
-        ai_state = {
-            "eye_status": eye_status,
-            "mouth_status": mouth_status,
-            "head_status": head_status,
-            "drowsy_status": drowsy_status,
-            "ear": round(ear, 3) if ear is not None else None,
-            "mar": round(mar, 3) if mar is not None else None,
-            "left_ear": round(left_ear, 3) if left_ear is not None else None,
-            "right_ear": round(right_ear, 3) if right_ear is not None else None,
-            "blink_counter": 0,
-            "tired_event_counter": 0,
-            "yawn_counter": 0,
-        }
 
         return jsonify({
             "status": "success",
-            "ai": ai_state
+            "ai": {
+                "eye_status": eye_status,
+                "mouth_status": mouth_status,
+                "head_status": head_status,
+                "drowsy_status": drowsy_status,
+                "ear": round(ear, 3) if ear is not None else None,
+                "mar": round(mar, 3) if mar is not None else None,
+                "landmarks": landmarks,
+                "left_eye_indexes": LEFT_EYE_INDEXES,
+                "right_eye_indexes": RIGHT_EYE_INDEXES,
+                "mouth_indexes": MOUTH_INDEXES
+            }
         })
 
     except Exception as e:
         logger.error(f"Lỗi analyze_frame: {e}")
-        return jsonify({
-            "status": "error",
-            "message": str(e)
-        }), 500
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
