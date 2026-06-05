@@ -1,5 +1,9 @@
-from flask import Flask, render_template, Response, jsonify, request, redirect, url_for, flash
+from flask import Flask, render_template, Response, jsonify, request, redirect, url_for, flash, session
+from functools import wraps
+from werkzeug.security import check_password_hash
 import cv2
+import csv
+import io
 import os
 
 os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
@@ -27,15 +31,26 @@ from database import (
     get_shift_stats,
     add_shift as add_shift_record,
     get_all_alerts,
+    get_alert_statistics,
     get_dashboard_stats,
     get_drivers_with_face_encoding,
     get_current_shift_by_driver,
+    get_admin_by_username,
     get_driver_by_id,
     update_driver,
     delete_driver,
     get_driver_stats,
 )
-from models.face_recognition_model import recognize_driver_from_frame, rebuild_all_face_encodings, build_face_encoding_for_driver, append_face_encoding_from_frame
+from models.ear_calculator import calculate_ear, LEFT_EYE_INDEXES, RIGHT_EYE_INDEXES
+from models.mar_calculator import calculate_mar, MOUTH_INDEXES
+from models.head_pose import detect_head_down
+from models.drowsiness_detection import DrowsinessDetector
+from models.face_recognition_model import (
+    recognize_driver_from_frame,
+    rebuild_all_face_encodings,
+    build_face_encoding_for_driver,
+    append_face_encoding_from_frame,
+)
 from utils.alert_manager import process_violation
 from utils.logger import setup_logger
 
@@ -49,6 +64,25 @@ app = Flask(
 
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "driver-guard-ai-dev-secret")
 logger = setup_logger(__name__)
+detector = DrowsinessDetector()
+
+
+def check_admin_credentials(username: str, password: str) -> bool:
+    """So khớp tài khoản admin với hồ sơ trong DB (bảng profiles)."""
+    admin = get_admin_by_username(username)
+    if not admin or not admin.get("password_hash"):
+        return False
+    return check_password_hash(admin["password_hash"], password)
+
+
+def login_required(view):
+    """Chặn route quản lý nếu chưa đăng nhập. Trang tài xế (/camera) không dùng."""
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if not session.get("user"):
+            return redirect(url_for("login"))
+        return view(*args, **kwargs)
+    return wrapped
 
 camera_stream = None
 camera_running = False
@@ -82,53 +116,6 @@ face_mesh = mp_face_mesh.FaceMesh(
     min_detection_confidence=0.5,
     min_tracking_confidence=0.5
 )
-def distance(point1, point2):
-    x1, y1 = point1
-    x2, y2 = point2
-
-    return ((x2 - x1) ** 2 + (y2 - y1) ** 2) ** 0.5
-def calculate_ear(eye_points):
-    # Khoảng cách dọc
-    vertical_1 = distance(eye_points[1], eye_points[5])
-    vertical_2 = distance(eye_points[2], eye_points[4])
-
-    # Khoảng cách ngang
-    horizontal = distance(eye_points[0], eye_points[3])
-
-    if horizontal == 0:
-        return 0.0
-
-    # Công thức EAR
-    ear = (vertical_1 + vertical_2) / (2.0 * horizontal)
-
-    return ear
-def calculate_mar(mouth_points):
-    vertical_1 = distance(mouth_points[1], mouth_points[5])
-    vertical_2 = distance(mouth_points[2], mouth_points[4])
-
-    horizontal = distance(mouth_points[0], mouth_points[3])
-
-    if horizontal == 0:
-        return 0.0
-
-    mar = (vertical_1 + vertical_2) / (2.0 * horizontal)
-
-    return mar
-def detect_head_down(face_landmarks, width, height):
-    nose = face_landmarks.landmark[1]
-    chin = face_landmarks.landmark[152]
-    forehead = face_landmarks.landmark[10]
-
-    nose_chin = abs(chin.y - nose.y)
-    forehead_y = abs(chin.y - forehead.y)
-    if forehead_y == 0:
-        return False
-    ratio = nose_chin / forehead_y
-    return ratio < 0.38
-LEFT_EYE_INDEXES = [33, 160, 158, 133, 153, 144]
-RIGHT_EYE_INDEXES = [362, 385, 387, 263, 373, 380]
-MOUTH_INDEXES = [61, 81, 13, 291, 311, 14]
-HEAD_POSE_INDEXES = [1, 152, 33, 263, 61, 291]
 MAR_THRESHOLD = 0.3
 EAR_THRESHOLD = 0.22
 
@@ -138,7 +125,6 @@ BLINK_MAX_SECONDS = 0.5
 BLINK_WARNING_THRESHOLD = 15
 
 eyes_closed_start_time = None
-closed_counter = 0
 blink_counter = 0
 tired_event_counter = 0
 blink_start_time = time.time()
@@ -162,20 +148,16 @@ latest_ai_state = {
     "drowsy_status": "NORMAL",
     "ear": None,
     "mar": None,
-    "blink_counter": 0,
-    "tired_event_counter": 0,
-    "yawn_counter": 0,
 }
 
 
 def reset_detection_state():
-    global eyes_closed_start_time, closed_counter, blink_counter, tired_event_counter, blink_start_time
+    global eyes_closed_start_time, blink_counter, tired_event_counter, blink_start_time
     global mouth_open_detected, mouth_open_time, yawn_counter
     global head_down_start_time, head_down_detected, alert_triggered
     global latest_ai_state
 
     eyes_closed_start_time = None
-    closed_counter = 0
     blink_counter = 0
     tired_event_counter = 0
     blink_start_time = time.time()
@@ -185,6 +167,7 @@ def reset_detection_state():
     head_down_start_time = 0
     head_down_detected = False
     alert_triggered = False
+    detector.reset()
     latest_ai_state = {
         "eye_status": "NO FACE",
         "mouth_status": "NORMAL",
@@ -192,9 +175,6 @@ def reset_detection_state():
         "drowsy_status": "NORMAL",
         "ear": None,
         "mar": None,
-        "blink_counter": 0,
-        "tired_event_counter": 0,
-        "yawn_counter": 0,
     }
 
 
@@ -530,20 +510,8 @@ def generate_frames():
                     height, width, _ = ai_frame.shape
                     current_time = time.time()
 
-                    if detect_head_down(face_landmarks, width, height):
-                        head_status = "HEAD DOWN"
-
-                        if not head_down_detected:
-                            head_down_detected = True
-                            head_down_start_time = current_time
-                        else:
-                            if current_time - head_down_start_time >= HEAD_DOWN_THRESHOLD:
-                                send_alert = True
-                                alert_triggered = True
-                                drowsy_status = "HEAD DOWN ALERT"
-                    else:
-                        head_status = "NORMAL"
-                        head_down_detected = False
+                    head_down_now = detect_head_down(face_landmarks, width, height)
+                    head_status = "HEAD DOWN" if head_down_now else "NORMAL"
 
                     left_eye = []
                     right_eye = []
@@ -577,53 +545,27 @@ def generate_frames():
                         left_ear = calculate_ear(left_eye)
                         right_ear = calculate_ear(right_eye)
                         ear = (left_ear + right_ear) / 2.0
-
-                        if ear < EAR_THRESHOLD:
-                            eye_status = "EYES CLOSED"
-                            if eyes_closed_start_time is None:
-                                eyes_closed_start_time = current_time
-                            elif current_time - eyes_closed_start_time >= EYES_CLOSED_ALERT_SECONDS:
-                                drowsy_status = "DROWSY"
-                                send_alert = True
-                                alert_triggered = True
-                        else:
-                            eye_status = "EYES OPEN"
-                            if eyes_closed_start_time is not None:
-                                closed_duration = current_time - eyes_closed_start_time
-                                if closed_duration < BLINK_MAX_SECONDS:
-                                    blink_counter += 1
-                            eyes_closed_start_time = None
-
-                        if current_time - blink_start_time >= 30:
-                            if blink_counter >= BLINK_WARNING_THRESHOLD:
-                                tired_event_counter += 1
-
-                            blink_counter = 0
-                            blink_start_time = current_time
-
-                        if drowsy_status == "NORMAL" and (tired_event_counter >= 2 or yawn_counter >= 3):
-                            drowsy_status = "TIRED"
-                            send_alert = True
-                            alert_triggered = True
+                        eye_status = "EYES CLOSED" if ear < EAR_THRESHOLD else "EYES OPEN"
 
                     if len(mouth_points) == 6:
                         mar = calculate_mar(mouth_points)
 
-                        if mar > MAR_THRESHOLD:
-                            mouth_status = "MOUTH OPEN"
-
-                            if not mouth_open_detected:
-                                mouth_open_detected = True
-                                mouth_open_time = current_time
-                            elif current_time - mouth_open_time >= YAWN_CONFIRM_TIME:
-                                yawn_counter += 1
-                                mouth_status = "YAWNING"
-                                mouth_open_detected = False
-                                send_alert = True
-                                alert_triggered = True
-                        else:
-                            mouth_status = "NORMAL"
-                            mouth_open_detected = False
+                    # --- Quyết định buồn ngủ tập trung (luật >=2/3 chỉ số) ---
+                    if ear is not None:
+                        result = detector.update(
+                            ear,
+                            mar if mar is not None else 0.0,
+                            head_down_now,
+                            current_time,
+                        )
+                        if mar is not None:
+                            mouth_status = "YAWNING" if result["mouth_breaching"] else (
+                                "MOUTH OPEN" if mar > MAR_THRESHOLD else "NORMAL")
+                        if result["alert_type"] is not None:
+                            send_alert = True
+                            alert_type = result["alert_type"]
+                            alert_level = result["alert_level"]
+                            drowsy_status = "DROWSY" if alert_level == "high" else "TIRED"
 
                     mp_drawing.draw_landmarks(
                         image=ai_frame,
@@ -676,12 +618,6 @@ def generate_frames():
                             cv2.FONT_HERSHEY_SIMPLEX, 0.8,
                             (0, 0, 255) if send_alert else (0, 255, 0), 2)
 
-                cv2.putText(ai_frame, f"BLINKS/30S: {blink_counter}", (20, 220),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
-
-                cv2.putText(ai_frame, f"TIRED EVENTS: {tired_event_counter}/2", (20, 250),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
-
                 if mar is not None:
                     cv2.putText(ai_frame, f"MAR: {mar:.2f}", (20, 280),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 255), 2)
@@ -690,34 +626,15 @@ def generate_frames():
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.7,
                                 (0, 0, 255) if mouth_status == "YAWNING" else (0, 255, 0), 2)
 
-                    cv2.putText(ai_frame, f"YAWNS: {yawn_counter}", (20, 340),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 255), 2)
-
                 cv2.putText(ai_frame, f"HEAD: {head_status}", (20, 370),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.7,
                             (0, 0, 255) if head_status == "HEAD DOWN" else (0, 255, 0), 2)
 
-                if send_alert or alert_triggered:
+                if send_alert:
                     cv2.putText(ai_frame, "SEND ALERT TO MANAGER", (20, 340),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
 
-                    if send_alert and current_driver_id and last_recognition_result.get("status") == "RECOGNIZED":
-                        if drowsy_status == "HEAD DOWN ALERT":
-                            alert_type = "HEAD_DOWN"
-                            alert_level = "medium"
-                        elif drowsy_status == "DROWSY":
-                            alert_type = "DROWSY"
-                            alert_level = "high"
-                        elif drowsy_status == "TIRED":
-                            alert_type = "EYES_CLOSED"
-                            alert_level = "medium"
-                        elif mouth_status == "YAWNING":
-                            alert_type = "YAWNING"
-                            alert_level = "low"
-                        else:
-                            alert_type = "DROWSY"
-                            alert_level = "medium"
-
+                    if current_driver_id and last_recognition_result.get("status") == "RECOGNIZED":
                         shift = last_recognition_result.get("shift")
 
                         process_violation(
@@ -738,9 +655,6 @@ def generate_frames():
                     "drowsy_status": drowsy_status,
                     "ear": round(ear, 3) if ear is not None else None,
                     "mar": round(mar, 3) if mar is not None else None,
-                    "blink_counter": blink_counter,
-                    "tired_event_counter": tired_event_counter,
-                    "yawn_counter": yawn_counter,
                 }
 
             else:
@@ -751,9 +665,6 @@ def generate_frames():
                     "drowsy_status": "NORMAL",
                     "ear": None,
                     "mar": None,
-                    "blink_counter": blink_counter,
-                    "tired_event_counter": tired_event_counter,
-                    "yawn_counter": yawn_counter,
                 }
                 cv2.putText(ai_frame, "NO FACE DETECTED", (20, 80),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
@@ -776,11 +687,26 @@ def generate_frames():
         except Exception as e:
             logger.error(f"Lỗi generate_frames: {e}")
             break
-@app.route("/")
-@app.route("/login")
-@app.route("/login.html")
+@app.route("/", methods=["GET", "POST"])
+@app.route("/login", methods=["GET", "POST"])
+@app.route("/login.html", methods=["GET", "POST"])
 def login():
+    if request.method == "POST":
+        username = request.form.get("username", "")
+        password = request.form.get("password", "")
+        if check_admin_credentials(username, password):
+            session["user"] = username
+            return redirect(url_for("dashboard"))
+        flash("Sai tên đăng nhập hoặc mật khẩu", "error")
+        return render_template("login.html")
+
     return render_template("login.html")
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
 
 
 @app.route("/start_camera", methods=["POST"])
@@ -920,6 +846,7 @@ def register():
 
 @app.route("/dashboard")
 @app.route("/dashboard.html")
+@login_required
 def dashboard():
     stats = get_dashboard_stats()
     recent_alerts = get_all_alerts(limit=3)
@@ -934,6 +861,7 @@ def camera():
 
 @app.route("/drivers")
 @app.route("/drivers.html")
+@login_required
 def drivers():
     drivers_list = get_all_drivers()
     drivers_list = attach_current_shift_to_drivers(drivers_list)
@@ -944,6 +872,7 @@ def drivers():
 
 @app.route("/vehicles")
 @app.route("/vehicles.html")
+@login_required
 def vehicles():
     vehicles_list = get_all_vehicles()
     vehicles_list = attach_current_shift_to_vehicles(vehicles_list)
@@ -953,6 +882,7 @@ def vehicles():
 
 @app.route("/shifts")
 @app.route("/shifts.html")
+@login_required
 def shifts():
     shifts_list = get_all_shifts()
     shift_stats = get_shift_stats(shifts_list)
@@ -961,25 +891,69 @@ def shifts():
 
 @app.route("/alerts")
 @app.route("/alerts.html")
+@login_required
 def alerts():
     alerts_list = get_all_alerts()
     return render_template("alerts.html", alerts=alerts_list)
 
 
+@app.route("/export-alerts")
+@login_required
+def export_alerts():
+    alerts_list = get_all_alerts()
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "alert_time",
+        "driver",
+        "vehicle",
+        "alert_type",
+        "alert_level",
+        "ear",
+        "mar",
+        "head_status",
+    ])
+
+    for alert in alerts_list or []:
+        driver = alert.get("drivers") or {}
+        vehicle = alert.get("vehicles") or {}
+        writer.writerow([
+            alert.get("alert_time") or "",
+            driver.get("full_name") or "",
+            vehicle.get("plate_number") or "",
+            alert.get("alert_type") or "",
+            alert.get("alert_level") or "",
+            alert.get("ear_value") if alert.get("ear_value") is not None else "",
+            alert.get("mar_value") if alert.get("mar_value") is not None else "",
+            alert.get("head_status") or "",
+        ])
+
+    filename = datetime.now().strftime("alerts_%Y%m%d_%H%M%S.csv")
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+
 @app.route("/stats")
 @app.route("/stats.html")
+@login_required
 def stats():
-    return render_template("stats.html")
+    alert_stats = get_alert_statistics()
+    return render_template("stats.html", stats=alert_stats, alert_stats=alert_stats)
 
 
 @app.route("/settings")
 @app.route("/settings.html")
+@login_required
 def settings():
     return render_template("settings.html")
 
 
 @app.route("/profile")
 @app.route("/profile.html")
+@login_required
 def profile():
     return render_template("profile.html")
 
@@ -987,6 +961,7 @@ def profile():
 @app.route("/add-vehicle", methods=["GET", "POST"])
 @app.route("/add_vehicle", methods=["GET", "POST"])
 @app.route("/add_vehicle.html", methods=["GET", "POST"])
+@login_required
 def add_vehicle():
     if request.method == "POST":
         form_data = clean_vehicle_form_data(request.form)
@@ -1005,6 +980,7 @@ def add_vehicle():
 @app.route("/add-shift", methods=["GET", "POST"])
 @app.route("/add_shift", methods=["GET", "POST"])
 @app.route("/add_shift.html", methods=["GET", "POST"])
+@login_required
 def add_shift():
     drivers_list = get_all_drivers()
     vehicles_list = get_all_vehicles()
@@ -1031,10 +1007,10 @@ def add_shift():
         vehicles=vehicles_list
     )
 
-
 @app.route("/add-driver", methods=["GET", "POST"])
 @app.route("/add_driver", methods=["GET", "POST"])
 @app.route("/add_driver.html", methods=["GET", "POST"])
+@login_required
 def add_driver():
     vehicles_list = get_all_vehicles()
 
@@ -1094,6 +1070,7 @@ def add_driver():
 
 @app.route("/drivers/<driver_id>")
 @app.route("/driver_detail/<driver_id>")
+@login_required
 def driver_detail(driver_id):
     driver = get_driver_by_id(driver_id)
     if not driver:
@@ -1106,6 +1083,7 @@ def driver_detail(driver_id):
 
 
 @app.route("/drivers/<driver_id>/edit", methods=["GET", "POST"])
+@login_required
 def edit_driver(driver_id):
     driver = get_driver_by_id(driver_id)
     if not driver:
@@ -1127,6 +1105,7 @@ def edit_driver(driver_id):
 
 
 @app.route("/drivers/<driver_id>/delete", methods=["POST"])
+@login_required
 def remove_driver(driver_id):
     success, message = delete_driver(driver_id)
     flash(message, "success" if success else "error")
