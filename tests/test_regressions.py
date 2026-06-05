@@ -40,20 +40,34 @@ class AppRouteTests(unittest.TestCase):
             "high_alerts_today": 0,
             "active_shifts": 0,
         }
+        empty_alert_stats = {
+            "total": 0, "high_count": 0,
+            "by_type": {"DROWSY": 0, "EYES_CLOSED": 0, "YAWNING": 0,
+                        "HEAD_DOWN": 0, "UNKNOWN_DRIVER": 0},
+            "by_day": [], "top_drivers": [],
+        }
         with (
             patch.object(webapp, "get_all_drivers", return_value=[]),
             patch.object(webapp, "get_dashboard_stats", return_value=stats),
             patch.object(webapp, "get_all_alerts", return_value=[]),
+            patch.object(webapp, "get_alert_statistics", return_value=empty_alert_stats),
         ):
-            paths = [
-                "/", "/login", "/register", "/dashboard", "/drivers",
-                "/vehicles", "/shifts", "/camera", "/alerts", "/stats",
-                "/settings", "/profile", "/add-driver",
-            ]
-            for path in paths:
+            # Trang công khai (không cần đăng nhập).
+            public_paths = ["/login", "/register", "/camera"]
+            for path in public_paths:
                 with self.subTest(path=path):
-                    response = self.client.get(path)
-                    self.assertEqual(response.status_code, 200)
+                    self.assertEqual(self.client.get(path).status_code, 200)
+
+            # Trang quản lý: cần đăng nhập -> set session rồi mới truy cập.
+            with self.client.session_transaction() as sess:
+                sess["user"] = "admin"
+            admin_paths = [
+                "/dashboard", "/drivers", "/vehicles", "/shifts", "/alerts",
+                "/stats", "/settings", "/profile", "/add-driver",
+            ]
+            for path in admin_paths:
+                with self.subTest(path=path):
+                    self.assertEqual(self.client.get(path).status_code, 200)
 
     @patch.object(webapp, "get_all_alerts")
     def test_alerts_page_handles_missing_alert_time(self, get_all_alerts):
@@ -68,6 +82,8 @@ class AppRouteTests(unittest.TestCase):
             "head_status": None,
         }]
 
+        with self.client.session_transaction() as sess:
+            sess["user"] = "admin"
         response = self.client.get("/alerts")
 
         self.assertEqual(response.status_code, 200)
@@ -91,6 +107,8 @@ class AppRouteTests(unittest.TestCase):
             patch.object(webapp, "get_dashboard_stats", return_value=stats),
             patch.object(webapp, "get_all_alerts", return_value=[recent_alert]),
         ):
+            with self.client.session_transaction() as sess:
+                sess["user"] = "admin"
             response = self.client.get("/dashboard")
 
         self.assertEqual(response.status_code, 200)

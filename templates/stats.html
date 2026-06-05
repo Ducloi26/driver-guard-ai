@@ -31,7 +31,7 @@
             <a href="/alerts">⚠️ Lịch sử cảnh báo</a>
             <a href="/stats" class="active">📈 Thống kê</a>
             <a href="/settings">⚙️ Cài đặt</a>
-            <a href="/login">🚪 Đăng xuất</a>
+            <a href="/logout">🚪 Đăng xuất</a>
         </nav>
     </aside>
 
@@ -60,23 +60,23 @@
             <div class="stats-summary">
 
                 <div class="stats-card">
-                    <h3>487</h3>
-                    <p>Tổng cảnh báo tháng này</p>
+                    <h3>{{ stats.total }}</h3>
+                    <p>Tổng cảnh báo</p>
                 </div>
 
                 <div class="stats-card danger">
-                    <h3>38</h3>
-                    <p>Cảnh báo nguy hiểm</p>
+                    <h3>{{ stats.high_count }}</h3>
+                    <p>Cảnh báo nguy hiểm (mức cao)</p>
                 </div>
 
                 <div class="stats-card warning">
-                    <h3>12.5%</h3>
-                    <p>Tăng so với tháng trước</p>
+                    <h3>{{ stats.by_type.DROWSY }}</h3>
+                    <p>Buồn ngủ (DROWSY)</p>
                 </div>
 
                 <div class="stats-card success">
-                    <h3>89%</h3>
-                    <p>Tỷ lệ đã xử lý</p>
+                    <h3>{{ stats.by_type.YAWNING }}</h3>
+                    <p>Ngáp (YAWNING)</p>
                 </div>
 
             </div>
@@ -107,9 +107,9 @@
                     </select>
                 </div>
 
-                <button class="btn-outline">
-                    Xuất báo cáo PDF
-                </button>
+                <a class="btn-outline" href="{{ url_for('export_alerts') }}">
+                    Xuất dữ liệu (CSV)
+                </a>
 
             </div>
 
@@ -119,40 +119,12 @@
                     <div class="card-title">Biểu đồ cảnh báo theo ngày</div>
 
                     <div class="chart-large">
+                        {% for d in stats.by_day %}
                         <div class="chart-column">
-                            <div class="chart-bar" style="height:45%"></div>
-                            <div class="chart-label">T2</div>
+                            <div class="chart-bar" style="height:{{ d.pct }}%" title="{{ d.count }} cảnh báo"></div>
+                            <div class="chart-label">{{ d.label }}</div>
                         </div>
-
-                        <div class="chart-column">
-                            <div class="chart-bar" style="height:70%"></div>
-                            <div class="chart-label">T3</div>
-                        </div>
-
-                        <div class="chart-column">
-                            <div class="chart-bar" style="height:55%"></div>
-                            <div class="chart-label">T4</div>
-                        </div>
-
-                        <div class="chart-column">
-                            <div class="chart-bar" style="height:90%"></div>
-                            <div class="chart-label">T5</div>
-                        </div>
-
-                        <div class="chart-column">
-                            <div class="chart-bar" style="height:65%"></div>
-                            <div class="chart-label">T6</div>
-                        </div>
-
-                        <div class="chart-column">
-                            <div class="chart-bar" style="height:100%"></div>
-                            <div class="chart-label">T7</div>
-                        </div>
-
-                        <div class="chart-column">
-                            <div class="chart-bar" style="height:50%"></div>
-                            <div class="chart-label">CN</div>
-                        </div>
+                        {% endfor %}
                     </div>
                 </div>
 
@@ -162,7 +134,7 @@
                     <div class="donut-wrap">
                         <div class="donut">
                             <div class="donut-center">
-                                <strong>487</strong>
+                                <strong>{{ stats.total }}</strong>
                                 <span>Cảnh báo</span>
                             </div>
                         </div>
@@ -172,33 +144,33 @@
                             <div class="legend-item">
                                 <div class="legend-left">
                                     <div class="legend-dot dot-red"></div>
-                                    <span>Nhắm mắt lâu</span>
+                                    <span>Nhắm mắt (EYES_CLOSED)</span>
                                 </div>
-                                <strong>38%</strong>
+                                <strong>{{ stats.by_type.EYES_CLOSED }}</strong>
                             </div>
 
                             <div class="legend-item">
                                 <div class="legend-left">
                                     <div class="legend-dot dot-orange"></div>
-                                    <span>Ngáp liên tục</span>
+                                    <span>Ngáp (YAWNING)</span>
                                 </div>
-                                <strong>28%</strong>
+                                <strong>{{ stats.by_type.YAWNING }}</strong>
                             </div>
 
                             <div class="legend-item">
                                 <div class="legend-left">
                                     <div class="legend-dot dot-blue"></div>
-                                    <span>Gục đầu</span>
+                                    <span>Cúi đầu (HEAD_DOWN)</span>
                                 </div>
-                                <strong>20%</strong>
+                                <strong>{{ stats.by_type.HEAD_DOWN }}</strong>
                             </div>
 
                             <div class="legend-item">
                                 <div class="legend-left">
                                     <div class="legend-dot dot-purple"></div>
-                                    <span>Ngủ gật</span>
+                                    <span>Buồn ngủ (DROWSY)</span>
                                 </div>
-                                <strong>14%</strong>
+                                <strong>{{ stats.by_type.DROWSY }}</strong>
                             </div>
 
                         </div>
@@ -214,41 +186,21 @@
 
                     <div class="ranking-list">
 
+                        {% for d in stats.top_drivers %}
                         <div class="rank-item">
-                            <div class="rank-number">1</div>
+                            <div class="rank-number">{{ loop.index }}</div>
                             <div class="rank-info">
-                                <strong>Phạm Minh D</strong>
-                                <span>Xe 29H-88999 • Ca sáng</span>
+                                <strong>{{ d.name }}</strong>
                             </div>
-                            <div class="rank-count">42 lần</div>
+                            <div class="rank-count">{{ d.count }} lần</div>
                         </div>
-
+                        {% else %}
                         <div class="rank-item">
-                            <div class="rank-number">2</div>
                             <div class="rank-info">
-                                <strong>Trần Văn B</strong>
-                                <span>Xe 51B-67890 • Ca chiều</span>
+                                <strong>Chưa có dữ liệu</strong>
                             </div>
-                            <div class="rank-count">31 lần</div>
                         </div>
-
-                        <div class="rank-item">
-                            <div class="rank-number">3</div>
-                            <div class="rank-info">
-                                <strong>Lê Hoàng C</strong>
-                                <span>Xe 60C-45678 • Ca đêm</span>
-                            </div>
-                            <div class="rank-count">18 lần</div>
-                        </div>
-
-                        <div class="rank-item">
-                            <div class="rank-number">4</div>
-                            <div class="rank-info">
-                                <strong>Nguyễn Văn A</strong>
-                                <span>Xe 51A-12345 • Ca sáng</span>
-                            </div>
-                            <div class="rank-count">12 lần</div>
-                        </div>
+                        {% endfor %}
 
                     </div>
                 </div>
@@ -365,7 +317,7 @@
             </button>
 
             <a
-                href="/login"
+                href="/logout"
                 class="btn-logout"
             >
                 Đăng xuất

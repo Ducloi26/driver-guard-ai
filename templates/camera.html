@@ -13,29 +13,8 @@
 
 <div class="app">
 
-    <aside class="sidebar">
-        <div class="logo">
-            <div class="logo-icon">🛡</div>
-            <div>
-                <h2>DriverGuard</h2>
-                <span>AI SAFETY</span>
-            </div>
-        </div>
-
-        <nav class="menu">
-            <a href="/dashboard">📊 Dashboard</a>
-            <a href="/drivers">👥 Tài xế</a>
-            <a href="/vehicles">🚘 Quản lý xe</a>
-            <a href="/shifts">⏱ Ca làm việc</a>
-            <a href="/camera" class="active">📷 Camera AI</a>
-            <a href="/alerts">⚠️ Lịch sử cảnh báo</a>
-            <a href="/stats">📈 Thống kê</a>
-            <a href="/settings">⚙️ Cài đặt</a>
-            <a href="/login">🚪 Đăng xuất</a>
-        </nav>
-    </aside>
-
     <main class="main">
+
 
         <header class="header">
             <div>
@@ -43,16 +22,6 @@
                 <p>Nhận diện tài xế và phát hiện buồn ngủ theo thời gian thực</p>
             </div>
 
-            <div class="header-right">
-                <input class="search-box" placeholder="Tìm kiếm...">
-                <div class="user-box">
-                    <div class="avatar">A</div>
-                    <div>
-                        <strong>Admin System</strong>
-                        <p>Quản trị viên</p>
-                    </div>
-                </div>
-            </div>
         </header>
 
         <section class="content">
@@ -96,19 +65,6 @@
                         </button>
                     </div>
 
-                    <div class="alert-popup">
-                        <h3>⚠️ CẢNH BÁO NGUY HIỂM</h3>
-                        <p>
-                            Tài xế Nguyễn Văn A có dấu hiệu ngủ gật liên tục 3 lần trong 5 phút.
-                            Hệ thống đề xuất gửi thông báo ngay đến quản lý doanh nghiệp.
-                        </p>
-
-                        <div class="alert-buttons">
-                            <button class="btn-danger-main">Gửi thông báo quản lý</button>
-                            <button class="btn-gray">Đánh dấu đã xử lý</button>
-                            <button class="btn-gray">Xem chi tiết</button>
-                        </div>
-                    </div>
                 </div>
 
                 <div class="side-panel">
@@ -188,21 +144,7 @@
 
 </div>
 
-<link rel="stylesheet" href="{{ url_for('static', filename='css/logout.css') }}">
-<script src="{{ url_for('static', filename='js/logout.js') }}"></script>
 <script src="{{ url_for('static', filename='js/camera.js') }}"></script>
-
-<div class="logout-modal" id="logoutModal">
-    <div class="logout-box">
-        <div class="logout-icon">⎋</div>
-        <h2>Đăng xuất?</h2>
-        <p>Bạn có chắc muốn đăng xuất khỏi hệ thống DriverGuard AI?</p>
-        <div class="logout-actions">
-            <button class="btn-logout-cancel" onclick="closeLogoutModal()">Hủy</button>
-            <a href="/login" class="btn-logout">Đăng xuất</a>
-        </div>
-    </div>
-</div>
 
 </body>
 </html>

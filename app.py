@@ -1,5 +1,9 @@
-from flask import Flask, render_template, Response, jsonify, request, redirect, url_for, flash
+from flask import Flask, render_template, Response, jsonify, request, redirect, url_for, flash, session
+from functools import wraps
+from werkzeug.security import check_password_hash
 import cv2
+import csv
+import io
 import os
 
 os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
@@ -30,6 +34,8 @@ from database import (
     get_dashboard_stats,
     get_drivers_with_face_encoding,
     get_current_shift_by_driver,
+    get_admin_by_username,
+    get_alert_statistics,
 )
 from models.face_recognition_model import recognize_driver_from_frame, rebuild_all_face_encodings, build_face_encoding_for_driver
 from models.ear_calculator import calculate_ear, LEFT_EYE_INDEXES, RIGHT_EYE_INDEXES
@@ -42,6 +48,24 @@ from utils.logger import setup_logger
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "driver-guard-ai-dev-secret")
 logger = setup_logger(__name__)
+
+
+def check_admin_credentials(username: str, password: str) -> bool:
+    """So khớp tài khoản admin với hồ sơ trong DB (bảng profiles)."""
+    admin = get_admin_by_username(username)
+    if not admin or not admin.get("password_hash"):
+        return False
+    return check_password_hash(admin["password_hash"], password)
+
+
+def login_required(view):
+    """Chặn route quản lý nếu chưa đăng nhập. Trang tài xế (/camera) không dùng."""
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if not session.get("user"):
+            return redirect(url_for("login"))
+        return view(*args, **kwargs)
+    return wrapped
 
 camera_stream = None
 camera_running = False
@@ -411,13 +435,12 @@ def generate_frames():
 
             original_frame = frame.copy()
             ai_frame = frame.copy()
+            rgb_frame = cv2.cvtColor(ai_frame, cv2.COLOR_BGR2RGB)
+            results = face_mesh.process(rgb_frame)
 
             # Chỉ cập nhật frame mới nhất cho thread nhận diện nền.
             # DeepFace không chạy trực tiếp trong vòng lặp video để tránh lag.
             update_latest_recognition_frame(frame)
-
-            rgb_frame = cv2.cvtColor(ai_frame, cv2.COLOR_BGR2RGB)
-            results = face_mesh.process(rgb_frame)
 
             left_ear = None
             right_ear = None
@@ -613,9 +636,32 @@ def generate_frames():
             logger.error(f"Lỗi generate_frames: {e}")
             break
 @app.route("/")
-@app.route("/login")
+def index():
+    if session.get("user"):
+        return redirect(url_for("dashboard"))
+    return redirect(url_for("login"))
+
+
+@app.route("/login", methods=["GET", "POST"])
 def login():
+    if request.method == "POST":
+        username = request.form.get("username", "")
+        password = request.form.get("password", "")
+        if check_admin_credentials(username, password):
+            session["user"] = username
+            return redirect(url_for("dashboard"))
+        flash("Sai tên đăng nhập hoặc mật khẩu", "error")
+        return render_template("login.html")
+
+    if session.get("user"):
+        return redirect(url_for("dashboard"))
     return render_template("login.html")
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
 
 
 @app.route("/camera")
@@ -725,6 +771,7 @@ def register():
 
 
 @app.route("/dashboard")
+@login_required
 def dashboard():
     stats = get_dashboard_stats()
     recent_alerts = get_all_alerts(limit=3)
@@ -732,6 +779,7 @@ def dashboard():
 
 
 @app.route("/drivers")
+@login_required
 def drivers():
     drivers_list = get_all_drivers()
     drivers_list = attach_current_shift_to_drivers(drivers_list)
@@ -740,6 +788,7 @@ def drivers():
 
 
 @app.route("/vehicles")
+@login_required
 def vehicles():
     vehicles_list = get_all_vehicles()
     vehicles_list = attach_current_shift_to_vehicles(vehicles_list)
@@ -748,6 +797,7 @@ def vehicles():
 
 
 @app.route("/add-vehicle", methods=["GET", "POST"])
+@login_required
 def add_vehicle():
     if request.method == "POST":
         form_data = clean_vehicle_form_data(request.form)
@@ -764,6 +814,7 @@ def add_vehicle():
 
 
 @app.route("/shifts")
+@login_required
 def shifts():
     shifts_list = get_all_shifts()
     shift_stats = get_shift_stats(shifts_list)
@@ -771,6 +822,7 @@ def shifts():
 
 
 @app.route("/add-shift", methods=["GET", "POST"])
+@login_required
 def add_shift():
     drivers_list = get_all_drivers()
     vehicles_list = get_all_vehicles()
@@ -799,27 +851,63 @@ def add_shift():
 
 
 @app.route("/alerts")
+@login_required
 def alerts():
     alerts_list = get_all_alerts()
     return render_template("alerts.html", alerts=alerts_list)
 
 
 @app.route("/stats")
+@login_required
 def stats():
-    return render_template("stats.html")
+    alert_stats = get_alert_statistics(days=7)
+    return render_template("stats.html", stats=alert_stats)
+
+
+@app.route("/export-alerts")
+@login_required
+def export_alerts():
+    alerts = get_all_alerts(limit=1000)
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Thời gian", "Tài xế", "Xe", "Loại", "Mức độ", "EAR", "MAR", "Đầu"])
+    for a in alerts:
+        drv = a.get("drivers") if isinstance(a.get("drivers"), dict) else {}
+        veh = a.get("vehicles") if isinstance(a.get("vehicles"), dict) else {}
+        writer.writerow([
+            a.get("alert_time", ""),
+            drv.get("full_name", ""),
+            veh.get("plate_number", ""),
+            a.get("alert_type", ""),
+            a.get("alert_level", ""),
+            a.get("ear_value", ""),
+            a.get("mar_value", ""),
+            a.get("head_status", ""),
+        ])
+
+    # ﻿ (BOM) để Excel mở UTF-8 đúng tiếng Việt.
+    return Response(
+        "﻿" + output.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=alerts.csv"},
+    )
 
 
 @app.route("/settings")
+@login_required
 def settings():
     return render_template("settings.html")
 
 
 @app.route("/profile")
+@login_required
 def profile():
     return render_template("profile.html")
 
 
 @app.route("/add-driver", methods=["GET", "POST"])
+@login_required
 def add_driver():
     vehicles_list = get_all_vehicles()
 

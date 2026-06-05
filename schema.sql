@@ -17,15 +17,21 @@ create table if not exists companies (
 );
 
 -- Hồ sơ người dùng quản trị/giám sát.
--- id có thể map với auth.users.id nếu dùng Supabase Auth sau này.
+-- username + password_hash dùng cho đăng nhập admin (WP4 - xác thực qua DB).
 create table if not exists profiles (
     id uuid primary key,
     company_id uuid references companies(id) on delete cascade,
     full_name text not null,
     phone text,
     role text not null default 'manager',
+    username text unique,
+    password_hash text,
     created_at timestamptz not null default now()
 );
+
+-- Migration cho DB đã tồn tại (chạy trong Supabase SQL editor):
+--   alter table profiles add column if not exists username text unique;
+--   alter table profiles add column if not exists password_hash text;
 
 -- Danh sách tài xế và dữ liệu nhận diện khuôn mặt.
 -- avatar_path lưu path trong Storage bucket driver-images.

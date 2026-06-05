@@ -100,7 +100,6 @@ def extract_deepface_embedding(image_bgr, retry_with_preprocess: bool = True) ->
 
     try:
         from deepface import DeepFace
-
         representations = DeepFace.represent(
             img_path=image_bgr,
             model_name=DEEPFACE_MODEL_NAME,
@@ -142,7 +141,6 @@ def extract_deepface_embedding(image_bgr, retry_with_preprocess: bool = True) ->
 
         except Exception as e:
             logger.debug(f"DeepFace lần 2 (preprocess) thất bại: {e}")
-
     try:
         from deepface import DeepFace
 
