@@ -32,6 +32,10 @@ from database import (
     get_current_shift_by_driver,
 )
 from models.face_recognition_model import recognize_driver_from_frame, rebuild_all_face_encodings, build_face_encoding_for_driver
+from models.ear_calculator import calculate_ear, LEFT_EYE_INDEXES, RIGHT_EYE_INDEXES
+from models.mar_calculator import calculate_mar, MOUTH_INDEXES
+from models.head_pose import detect_head_down
+from models.drowsiness_detection import DrowsinessDetector
 from utils.alert_manager import process_violation
 from utils.logger import setup_logger
 
@@ -70,76 +74,17 @@ face_mesh = mp_face_mesh.FaceMesh(
     min_detection_confidence=0.5,
     min_tracking_confidence=0.5
 )
-def distance(point1, point2):
-    x1, y1 = point1
-    x2, y2 = point2
-
-    return ((x2 - x1) ** 2 + (y2 - y1) ** 2) ** 0.5
-def calculate_ear(eye_points):
-    # Khoảng cách dọc
-    vertical_1 = distance(eye_points[1], eye_points[5])
-    vertical_2 = distance(eye_points[2], eye_points[4])
-
-    # Khoảng cách ngang
-    horizontal = distance(eye_points[0], eye_points[3])
-
-    if horizontal == 0:
-        return 0.0
-
-    # Công thức EAR
-    ear = (vertical_1 + vertical_2) / (2.0 * horizontal)
-
-    return ear
-def calculate_mar(mouth_points):
-    vertical_1 = distance(mouth_points[1], mouth_points[5])
-    vertical_2 = distance(mouth_points[2], mouth_points[4])
-
-    horizontal = distance(mouth_points[0], mouth_points[3])
-
-    if horizontal == 0:
-        return 0.0
-
-    mar = (vertical_1 + vertical_2) / (2.0 * horizontal)
-
-    return mar
-def detect_head_down(face_landmarks, width, height):
-    nose = face_landmarks.landmark[1]
-    chin = face_landmarks.landmark[152]
-    forehead = face_landmarks.landmark[10]
-
-    nose_chin = abs(chin.y - nose.y)
-    forehead_y = abs(chin.y - forehead.y)
-    if forehead_y == 0:
-        return False
-    ratio = nose_chin / forehead_y
-    return ratio < 0.38
-LEFT_EYE_INDEXES = [33, 160, 158, 133, 153, 144]
-RIGHT_EYE_INDEXES = [362, 385, 387, 263, 373, 380]
-MOUTH_INDEXES = [61, 81, 13, 291, 311, 14]
-HEAD_POSE_INDEXES = [1, 152, 33, 263, 61, 291]
 MAR_THRESHOLD = 0.3
 EAR_THRESHOLD = 0.22
 
-EYES_CLOSED_ALERT_SECONDS = 3.0
-BLINK_MAX_SECONDS = 0.5
-
-BLINK_WARNING_THRESHOLD = 15
-
-eyes_closed_start_time = None
-blink_counter = 0
-tired_event_counter = 0
-blink_start_time = time.time()
-
-YAWN_CONFIRM_TIME = 10
-
-mouth_open_detected = False
-mouth_open_time = 0
-yawn_counter = 0
-HEAD_DOWN_THRESHOLD = 2
-
-head_down_start_time = 0
-head_down_detected = False
-alert_triggered = False
+# Bộ quyết định buồn ngủ tập trung (Phương án A - luật >=2/3 chỉ số).
+detector = DrowsinessDetector(
+    ear_threshold=EAR_THRESHOLD,
+    mar_threshold=MAR_THRESHOLD,
+    eyes_seconds=3.0,
+    mouth_seconds=2.0,
+    head_seconds=2.0,
+)
 current_driver_id = None
 
 latest_ai_state = {
@@ -149,28 +94,13 @@ latest_ai_state = {
     "drowsy_status": "NORMAL",
     "ear": None,
     "mar": None,
-    "blink_counter": 0,
-    "tired_event_counter": 0,
-    "yawn_counter": 0,
 }
 
 
 def reset_detection_state():
-    global eyes_closed_start_time, blink_counter, tired_event_counter, blink_start_time
-    global mouth_open_detected, mouth_open_time, yawn_counter
-    global head_down_start_time, head_down_detected, alert_triggered
     global latest_ai_state
 
-    eyes_closed_start_time = None
-    blink_counter = 0
-    tired_event_counter = 0
-    blink_start_time = time.time()
-    mouth_open_detected = False
-    mouth_open_time = 0
-    yawn_counter = 0
-    head_down_start_time = 0
-    head_down_detected = False
-    alert_triggered = False
+    detector.reset()
     latest_ai_state = {
         "eye_status": "NO FACE",
         "mouth_status": "NORMAL",
@@ -178,9 +108,6 @@ def reset_detection_state():
         "drowsy_status": "NORMAL",
         "ear": None,
         "mar": None,
-        "blink_counter": 0,
-        "tired_event_counter": 0,
-        "yawn_counter": 0,
     }
 
 
@@ -467,10 +394,6 @@ def to_camera_text(value) -> str:
 
 def generate_frames():
     global camera_stream, camera_running, last_frame
-    global eyes_closed_start_time, blink_counter, tired_event_counter, blink_start_time
-    global mouth_open_detected, mouth_open_time, yawn_counter
-    global head_down_start_time, head_down_detected
-    global alert_triggered
     global face_recognition_frame_counter, last_recognition_result
     global latest_ai_state
 
@@ -512,20 +435,8 @@ def generate_frames():
                     height, width, _ = ai_frame.shape
                     current_time = time.time()
 
-                    if detect_head_down(face_landmarks, width, height):
-                        head_status = "HEAD DOWN"
-
-                        if not head_down_detected:
-                            head_down_detected = True
-                            head_down_start_time = current_time
-                        else:
-                            if current_time - head_down_start_time >= HEAD_DOWN_THRESHOLD:
-                                send_alert = True
-                                alert_triggered = True
-                                drowsy_status = "HEAD DOWN ALERT"
-                    else:
-                        head_status = "NORMAL"
-                        head_down_detected = False
+                    head_down_now = detect_head_down(face_landmarks, width, height)
+                    head_status = "HEAD DOWN" if head_down_now else "NORMAL"
 
                     left_eye = []
                     right_eye = []
@@ -559,53 +470,27 @@ def generate_frames():
                         left_ear = calculate_ear(left_eye)
                         right_ear = calculate_ear(right_eye)
                         ear = (left_ear + right_ear) / 2.0
-
-                        if ear < EAR_THRESHOLD:
-                            eye_status = "EYES CLOSED"
-                            if eyes_closed_start_time is None:
-                                eyes_closed_start_time = current_time
-                            elif current_time - eyes_closed_start_time >= EYES_CLOSED_ALERT_SECONDS:
-                                drowsy_status = "DROWSY"
-                                send_alert = True
-                                alert_triggered = True
-                        else:
-                            eye_status = "EYES OPEN"
-                            if eyes_closed_start_time is not None:
-                                closed_duration = current_time - eyes_closed_start_time
-                                if closed_duration < BLINK_MAX_SECONDS:
-                                    blink_counter += 1
-                            eyes_closed_start_time = None
-
-                        if current_time - blink_start_time >= 30:
-                            if blink_counter >= BLINK_WARNING_THRESHOLD:
-                                tired_event_counter += 1
-
-                            blink_counter = 0
-                            blink_start_time = current_time
-
-                        if drowsy_status == "NORMAL" and (tired_event_counter >= 2 or yawn_counter >= 3):
-                            drowsy_status = "TIRED"
-                            send_alert = True
-                            alert_triggered = True
+                        eye_status = "EYES CLOSED" if ear < EAR_THRESHOLD else "EYES OPEN"
 
                     if len(mouth_points) == 6:
                         mar = calculate_mar(mouth_points)
 
-                        if mar > MAR_THRESHOLD:
-                            mouth_status = "MOUTH OPEN"
-
-                            if not mouth_open_detected:
-                                mouth_open_detected = True
-                                mouth_open_time = current_time
-                            elif current_time - mouth_open_time >= YAWN_CONFIRM_TIME:
-                                yawn_counter += 1
-                                mouth_status = "YAWNING"
-                                mouth_open_detected = False
-                                send_alert = True
-                                alert_triggered = True
-                        else:
-                            mouth_status = "NORMAL"
-                            mouth_open_detected = False
+                    # --- Quyết định buồn ngủ tập trung (luật >=2/3 chỉ số) ---
+                    if ear is not None:
+                        result = detector.update(
+                            ear,
+                            mar if mar is not None else 0.0,
+                            head_down_now,
+                            current_time,
+                        )
+                        if mar is not None:
+                            mouth_status = "YAWNING" if result["mouth_breaching"] else (
+                                "MOUTH OPEN" if mar > MAR_THRESHOLD else "NORMAL")
+                        if result["alert_type"] is not None:
+                            send_alert = True
+                            alert_type = result["alert_type"]
+                            alert_level = result["alert_level"]
+                            drowsy_status = "DROWSY" if alert_level == "high" else "TIRED"
 
                     mp_drawing.draw_landmarks(
                         image=ai_frame,
@@ -658,12 +543,6 @@ def generate_frames():
                             cv2.FONT_HERSHEY_SIMPLEX, 0.8,
                             (0, 0, 255) if send_alert else (0, 255, 0), 2)
 
-                cv2.putText(ai_frame, f"BLINKS/30S: {blink_counter}", (20, 220),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
-
-                cv2.putText(ai_frame, f"TIRED EVENTS: {tired_event_counter}/2", (20, 250),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
-
                 if mar is not None:
                     cv2.putText(ai_frame, f"MAR: {mar:.2f}", (20, 280),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 255), 2)
@@ -672,34 +551,15 @@ def generate_frames():
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.7,
                                 (0, 0, 255) if mouth_status == "YAWNING" else (0, 255, 0), 2)
 
-                    cv2.putText(ai_frame, f"YAWNS: {yawn_counter}", (20, 340),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 255), 2)
-
                 cv2.putText(ai_frame, f"HEAD: {head_status}", (20, 370),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.7,
                             (0, 0, 255) if head_status == "HEAD DOWN" else (0, 255, 0), 2)
 
-                if send_alert or alert_triggered:
+                if send_alert:
                     cv2.putText(ai_frame, "SEND ALERT TO MANAGER", (20, 340),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
 
-                    if send_alert and current_driver_id and last_recognition_result.get("status") == "RECOGNIZED":
-                        if drowsy_status == "HEAD DOWN ALERT":
-                            alert_type = "HEAD_DOWN"
-                            alert_level = "medium"
-                        elif drowsy_status == "DROWSY":
-                            alert_type = "DROWSY"
-                            alert_level = "high"
-                        elif drowsy_status == "TIRED":
-                            alert_type = "EYES_CLOSED"
-                            alert_level = "medium"
-                        elif mouth_status == "YAWNING":
-                            alert_type = "YAWNING"
-                            alert_level = "low"
-                        else:
-                            alert_type = "DROWSY"
-                            alert_level = "medium"
-
+                    if current_driver_id and last_recognition_result.get("status") == "RECOGNIZED":
                         shift = last_recognition_result.get("shift")
 
                         process_violation(
@@ -720,9 +580,6 @@ def generate_frames():
                     "drowsy_status": drowsy_status,
                     "ear": round(ear, 3) if ear is not None else None,
                     "mar": round(mar, 3) if mar is not None else None,
-                    "blink_counter": blink_counter,
-                    "tired_event_counter": tired_event_counter,
-                    "yawn_counter": yawn_counter,
                 }
 
             else:
@@ -733,9 +590,6 @@ def generate_frames():
                     "drowsy_status": "NORMAL",
                     "ear": None,
                     "mar": None,
-                    "blink_counter": blink_counter,
-                    "tired_event_counter": tired_event_counter,
-                    "yawn_counter": yawn_counter,
                 }
                 cv2.putText(ai_frame, "NO FACE DETECTED", (20, 80),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
