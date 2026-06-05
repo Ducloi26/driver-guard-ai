@@ -4,10 +4,11 @@
     <meta charset="UTF-8">
     <title>Lịch sử cảnh báo - DriverGuard AI</title>
 
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/alerts.css') }}">
+    <link rel="stylesheet" href="./static/css/global.css">
+    <link rel="stylesheet" href="./static/css/layout.css">
+    <link rel="stylesheet" href="./static/css/dashboard.css">
+    <link rel="stylesheet" href="./static/css/alerts.css">
+    <link rel="stylesheet" href="./static/css/logout.css">
 </head>
 <body>
 
@@ -23,15 +24,15 @@
         </div>
 
         <nav class="menu">
-            <a href="/dashboard">📊 Dashboard</a>
-            <a href="/drivers">👥 Tài xế</a>
-            <a href="/vehicles">🚘 Quản lý xe</a>
-            <a href="/shifts">⏱ Ca làm việc</a>
-            <a href="/camera">📷 Camera AI</a>
-            <a href="/alerts" class="active">⚠️ Lịch sử cảnh báo</a>
-            <a href="/stats">📈 Thống kê</a>
-            <a href="/settings">⚙️ Cài đặt</a>
-            <a href="/login">🚪 Đăng xuất</a>
+            <a href="./dashboard.html">📊 Dashboard</a>
+            <a href="./drivers.html">👥 Tài xế</a>
+            <a href="./vehicles.html">🚘 Quản lý xe</a>
+            <a href="./shifts.html">⏱ Ca làm việc</a>
+            <a href="./camera.html">📷 Camera AI</a>
+            <a href="./alerts.html" class="active">⚠️ Lịch sử cảnh báo</a>
+            <a href="./stats.html">📈 Thống kê</a>
+            <a href="./settings.html">⚙️ Cài đặt</a>
+            <a href="./login.html">🚪 Đăng xuất</a>
         </nav>
     </aside>
 
@@ -59,22 +60,22 @@
 
             <div class="alert-summary">
                 <div class="alert-card">
-                    <h3>{{ alerts | length }}</h3>
+                    <h3>12</h3>
                     <p>Tổng cảnh báo</p>
                 </div>
 
                 <div class="alert-card">
-                    <h3>{{ alerts | selectattr('alert_level', 'equalto', 'high') | list | length }}</h3>
+                    <h3>4</h3>
                     <p>Nguy hiểm cao</p>
                 </div>
 
                 <div class="alert-card">
-                    <h3>{{ alerts | selectattr('sent_to_manager', 'equalto', true) | list | length }}</h3>
+                    <h3>7</h3>
                     <p>Đã gửi quản lý</p>
                 </div>
 
                 <div class="alert-card">
-                    <h3>{{ alerts | selectattr('sent_to_manager', 'equalto', false) | list | length }}</h3>
+                    <h3>5</h3>
                     <p>Chưa gửi</p>
                 </div>
             </div>
@@ -82,7 +83,6 @@
             <div class="alert-actions">
 
                 <div class="alert-filters">
-
                     <input type="text" placeholder="Tìm tài xế...">
 
                     <select>
@@ -103,7 +103,6 @@
                         <option>Đã gửi quản lý</option>
                         <option>Chưa gửi</option>
                     </select>
-
                 </div>
 
                 <button class="btn-main" style="width:auto;padding:12px 18px;">
@@ -114,26 +113,16 @@
 
             <div class="alert-grid">
 
-                {% for alert in alerts[:2] %}
-                {% set driver_name = alert.drivers.full_name if alert.drivers else 'Không xác định' %}
-                {% set plate_number = alert.vehicles.plate_number if alert.vehicles else 'Chưa gán xe' %}
-                {% set alert_label = {
-                    'EYES_CLOSED': 'NHẮM MẮT',
-                    'YAWNING': 'NGÁP',
-                    'HEAD_DOWN': 'GỤC ĐẦU',
-                    'DROWSY': 'NGỦ GẬT',
-                    'UNKNOWN_DRIVER': 'KHÔNG XÁC ĐỊNH'
-                }.get(alert.alert_type, alert.alert_type) %}
                 <div class="alert-item">
 
                     <div class="alert-image">
 
                         <div class="alert-live">
-                            ⚠️ {{ alert_label }}
+                            ⚠️ NHẮM MẮT
                         </div>
 
                         <div class="alert-time">
-                            {{ alert.alert_time[:16].replace('T', ' ') if alert.alert_time else '-' }}
+                            2026-06-05 13:35
                         </div>
 
                         👤
@@ -144,31 +133,25 @@
 
                         <div class="alert-top">
                             <div class="alert-title">
-                                {{ alert.alert_message or 'Cảnh báo AI' }}
+                                Tài xế có dấu hiệu nhắm mắt lâu
                             </div>
 
-                            {% if alert.alert_level == 'high' %}
                             <span class="badge badge-danger">Cao</span>
-                            {% elif alert.alert_level == 'medium' %}
-                            <span class="badge badge-warning">Trung bình</span>
-                            {% else %}
-                            <span class="badge badge-success">Thấp</span>
-                            {% endif %}
                         </div>
 
                         <div class="alert-driver">
 
                             <div class="alert-avatar">
-                                {{ driver_name[:2] | upper }}
+                                NA
                             </div>
 
                             <div>
                                 <div class="alert-driver-name">
-                                    {{ driver_name }}
+                                    Nguyễn Văn A
                                 </div>
 
                                 <div class="alert-driver-car">
-                                    {{ plate_number }}
+                                    47A-12345
                                 </div>
                             </div>
 
@@ -178,52 +161,113 @@
 
                             <div class="alert-info-box">
                                 <span>EAR</span>
-                                <strong>{{ alert.ear_value if alert.ear_value is not none else '-' }}</strong>
+                                <strong>0.18</strong>
                             </div>
 
                             <div class="alert-info-box">
                                 <span>MAR</span>
-                                <strong>{{ alert.mar_value if alert.mar_value is not none else '-' }}</strong>
+                                <strong>0.21</strong>
                             </div>
 
                             <div class="alert-info-box">
                                 <span>Đầu</span>
-                                <strong>{{ alert.head_status or '-' }}</strong>
+                                <strong>Bình thường</strong>
                             </div>
 
                             <div class="alert-info-box">
                                 <span>Gửi QL</span>
-                                <strong>{{ 'Rồi' if alert.sent_to_manager else 'Chưa' }}</strong>
+                                <strong>Rồi</strong>
                             </div>
 
                         </div>
 
                         <div class="alert-actions-buttons">
-
-                            <button class="btn-alert btn-view" type="button">
-                                Xem
-                            </button>
-
-                            <button class="btn-alert btn-process" type="button">
-                                Đánh dấu
-                            </button>
-
-                            <button class="btn-alert btn-danger" type="button">
-                                Gửi quản lý
-                            </button>
-
+                            <button class="btn-alert btn-view" type="button">Xem</button>
+                            <button class="btn-alert btn-process" type="button">Đánh dấu</button>
+                            <button class="btn-alert btn-danger" type="button">Gửi quản lý</button>
                         </div>
 
                     </div>
 
                 </div>
-                {% else %}
+
                 <div class="alert-item">
-                    <div class="alert-content">
-                        <div class="alert-title">Chưa có cảnh báo trong hệ thống</div>
+
+                    <div class="alert-image">
+
+                        <div class="alert-live">
+                            ⚠️ NGÁP
+                        </div>
+
+                        <div class="alert-time">
+                            2026-06-05 12:20
+                        </div>
+
+                        👤
+
                     </div>
+
+                    <div class="alert-content">
+
+                        <div class="alert-top">
+                            <div class="alert-title">
+                                Tài xế ngáp liên tục trong thời gian ngắn
+                            </div>
+
+                            <span class="badge badge-warning">Trung bình</span>
+                        </div>
+
+                        <div class="alert-driver">
+
+                            <div class="alert-avatar">
+                                TB
+                            </div>
+
+                            <div>
+                                <div class="alert-driver-name">
+                                    Trần Văn B
+                                </div>
+
+                                <div class="alert-driver-car">
+                                    47B-67890
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <div class="alert-info">
+
+                            <div class="alert-info-box">
+                                <span>EAR</span>
+                                <strong>0.31</strong>
+                            </div>
+
+                            <div class="alert-info-box">
+                                <span>MAR</span>
+                                <strong>0.62</strong>
+                            </div>
+
+                            <div class="alert-info-box">
+                                <span>Đầu</span>
+                                <strong>Bình thường</strong>
+                            </div>
+
+                            <div class="alert-info-box">
+                                <span>Gửi QL</span>
+                                <strong>Chưa</strong>
+                            </div>
+
+                        </div>
+
+                        <div class="alert-actions-buttons">
+                            <button class="btn-alert btn-view" type="button">Xem</button>
+                            <button class="btn-alert btn-process" type="button">Đánh dấu</button>
+                            <button class="btn-alert btn-danger" type="button">Gửi quản lý</button>
+                        </div>
+
+                    </div>
+
                 </div>
-                {% endfor %}
 
             </div>
 
@@ -245,50 +289,44 @@
                     </thead>
 
                     <tbody>
-                        {% for alert in alerts %}
-                        {% set driver_name = alert.drivers.full_name if alert.drivers else 'Không xác định' %}
-                        {% set alert_label = {
-                            'EYES_CLOSED': 'Nhắm mắt lâu',
-                            'YAWNING': 'Ngáp liên tục',
-                            'HEAD_DOWN': 'Gục đầu',
-                            'DROWSY': 'Ngủ gật',
-                            'UNKNOWN_DRIVER': 'Tài xế không xác định'
-                        }.get(alert.alert_type, alert.alert_type) %}
                         <tr>
-                            <td>{{ alert.alert_time[:16].replace('T', ' ') if alert.alert_time else '-' }}</td>
-                            <td>{{ driver_name }}</td>
-                            <td>{{ alert_label }}</td>
-                            <td>{{ alert.ear_value if alert.ear_value is not none else '-' }}</td>
-                            <td>{{ alert.mar_value if alert.mar_value is not none else '-' }}</td>
+                            <td>2026-06-05 13:35</td>
+                            <td>Nguyễn Văn A</td>
+                            <td>Nhắm mắt lâu</td>
+                            <td>0.18</td>
+                            <td>0.21</td>
+                            <td><span class="badge badge-danger">Nguy hiểm</span></td>
+                            <td><span class="badge badge-success">Đã gửi quản lý</span></td>
                             <td>
-                                {% if alert.alert_level == 'high' %}
-                                <span class="badge badge-danger">Nguy hiểm</span>
-                                {% elif alert.alert_level == 'medium' %}
-                                <span class="badge badge-warning">Cảnh báo</span>
-                                {% else %}
-                                <span class="badge badge-success">Thấp</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if alert.sent_to_manager %}
-                                <span class="badge badge-success">Đã gửi quản lý</span>
-                                {% else %}
-                                <span class="badge badge-warning">Chưa gửi</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <button class="btn-alert btn-view" type="button">
-                                    Xem
-                                </button>
+                                <button class="btn-alert btn-view" type="button">Xem</button>
                             </td>
                         </tr>
-                        {% else %}
+
                         <tr>
-                            <td colspan="8" style="text-align:center;padding:28px;">
-                                Chưa có cảnh báo trong hệ thống
+                            <td>2026-06-05 12:20</td>
+                            <td>Trần Văn B</td>
+                            <td>Ngáp liên tục</td>
+                            <td>0.31</td>
+                            <td>0.62</td>
+                            <td><span class="badge badge-warning">Cảnh báo</span></td>
+                            <td><span class="badge badge-warning">Chưa gửi</span></td>
+                            <td>
+                                <button class="btn-alert btn-view" type="button">Xem</button>
                             </td>
                         </tr>
-                        {% endfor %}
+
+                        <tr>
+                            <td>2026-06-05 10:45</td>
+                            <td>Lê Văn C</td>
+                            <td>Gục đầu</td>
+                            <td>0.27</td>
+                            <td>0.18</td>
+                            <td><span class="badge badge-success">Thấp</span></td>
+                            <td><span class="badge badge-warning">Chưa gửi</span></td>
+                            <td>
+                                <button class="btn-alert btn-view" type="button">Xem</button>
+                            </td>
+                        </tr>
                     </tbody>
 
                 </table>
@@ -300,8 +338,6 @@
     </main>
 
 </div>
-<link rel="stylesheet" href="{{ url_for('static', filename='css/logout.css') }}">
-<script src="{{ url_for('static', filename='js/logout.js') }}"></script>
 
 <div class="logout-modal" id="logoutModal">
 
@@ -323,7 +359,7 @@
             </button>
 
             <a
-                href="/login"
+                href="./login.html"
                 class="btn-logout"
             >
                 Đăng xuất
@@ -333,5 +369,8 @@
     </div>
 
 </div>
+
+<script src="./static/js/logout.js"></script>
+
 </body>
 </html>

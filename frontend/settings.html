@@ -4,10 +4,11 @@
     <meta charset="UTF-8">
     <title>Cài đặt - DriverGuard AI</title>
 
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
+    <link rel="stylesheet" href="./static/css/global.css">
+    <link rel="stylesheet" href="./static/css/layout.css">
+    <link rel="stylesheet" href="./static/css/dashboard.css">
+    <link rel="stylesheet" href="./static/css/settings.css">
+    <link rel="stylesheet" href="./static/css/logout.css">
 </head>
 <body>
 
@@ -23,15 +24,15 @@
         </div>
 
         <nav class="menu">
-            <a href="/dashboard">📊 Dashboard</a>
-            <a href="/drivers">👥 Tài xế</a>
-            <a href="/vehicles">🚘 Quản lý xe</a>
-            <a href="/shifts">⏱ Ca làm việc</a>
-            <a href="/camera">📷 Camera AI</a>
-            <a href="/alerts">⚠️ Lịch sử cảnh báo</a>
-            <a href="/stats">📈 Thống kê</a>
-            <a href="/settings" class="active">⚙️ Cài đặt</a>
-            <a href="/login">🚪 Đăng xuất</a>
+            <a href="./dashboard.html">📊 Dashboard</a>
+            <a href="./drivers.html">👥 Tài xế</a>
+            <a href="./vehicles.html">🚘 Quản lý xe</a>
+            <a href="./shifts.html">⏱ Ca làm việc</a>
+            <a href="./camera.html">📷 Camera AI</a>
+            <a href="./alerts.html">⚠️ Lịch sử cảnh báo</a>
+            <a href="./stats.html">📈 Thống kê</a>
+            <a href="./settings.html" class="active">⚙️ Cài đặt</a>
+            <a href="./login.html">🚪 Đăng xuất</a>
         </nav>
     </aside>
 
@@ -226,8 +227,8 @@
                 </div>
 
                 <div class="settings-actions">
-                    <button class="btn-cancel">Hủy thay đổi</button>
-                    <a href="/dashboard" class="btn-main btn-save">Lưu cài đặt</a>
+                    <button class="btn-cancel" type="button">Hủy thay đổi</button>
+                    <a href="./dashboard.html" class="btn-main btn-save">Lưu cài đặt</a>
                 </div>
 
             </div>
@@ -237,8 +238,6 @@
     </main>
 
 </div>
-<link rel="stylesheet" href="{{ url_for('static', filename='css/logout.css') }}">
-<script src="{{ url_for('static', filename='js/logout.js') }}"></script>
 
 <div class="logout-modal" id="logoutModal">
 
@@ -264,7 +263,7 @@
             </button>
 
             <a
-                href="/login"
+                href="./login.html"
                 class="btn-logout"
             >
                 Đăng xuất
@@ -275,5 +274,8 @@
     </div>
 
 </div>
+
+<script src="./static/js/logout.js"></script>
+
 </body>
 </html>

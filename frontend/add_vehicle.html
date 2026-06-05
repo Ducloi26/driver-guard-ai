@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <title>Thêm xe - DriverGuard AI</title>
 
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/vehicles.css') }}">
+    <link rel="stylesheet" href="./static/css/global.css">
+    <link rel="stylesheet" href="./static/css/layout.css">
+    <link rel="stylesheet" href="./static/css/dashboard.css">
+    <link rel="stylesheet" href="./static/css/vehicles.css">
 </head>
 <body>
 
@@ -23,15 +23,15 @@
         </div>
 
         <nav class="menu">
-            <a href="/dashboard">📊 Dashboard</a>
-            <a href="/drivers">👥 Tài xế</a>
-            <a href="/vehicles" class="active">🚘 Quản lý xe</a>
-            <a href="/shifts">⏱ Ca làm việc</a>
-            <a href="/camera">📷 Camera AI</a>
-            <a href="/alerts">⚠️ Lịch sử cảnh báo</a>
-            <a href="/stats">📈 Thống kê</a>
-            <a href="/settings">⚙️ Cài đặt</a>
-            <a href="/login">🚪 Đăng xuất</a>
+            <a href="./dashboard.html">📊 Dashboard</a>
+            <a href="./drivers.html">👥 Tài xế</a>
+            <a href="./vehicles.html" class="active">🚘 Quản lý xe</a>
+            <a href="./shifts.html">⏱ Ca làm việc</a>
+            <a href="./camera.html">📷 Camera AI</a>
+            <a href="./alerts.html">⚠️ Lịch sử cảnh báo</a>
+            <a href="./stats.html">📈 Thống kê</a>
+            <a href="./settings.html">⚙️ Cài đặt</a>
+            <a href="./login.html">🚪 Đăng xuất</a>
         </nav>
     </aside>
 
@@ -56,14 +56,14 @@
         </header>
 
         <section class="content">
-            <form class="card vehicle-table-card" method="POST" action="{{ url_for('add_vehicle') }}" style="padding:24px;">
+            <form class="card vehicle-table-card" style="padding:24px;">
                 <div class="vehicle-summary" style="grid-template-columns:repeat(2,1fr);">
                     <div>
                         <label>Biển số xe</label>
                         <input
                             type="text"
                             name="plate_number"
-                            value="{{ form_data.plate_number if form_data else '' }}"
+                            value=""
                             placeholder="51A-12345"
                             required
                         >
@@ -72,10 +72,10 @@
                     <div>
                         <label>Loại xe</label>
                         <select name="vehicle_type">
-                            <option value="Xe tải" {% if form_data and form_data.vehicle_type == 'Xe tải' %}selected{% endif %}>Xe tải</option>
-                            <option value="Xe khách" {% if form_data and form_data.vehicle_type == 'Xe khách' %}selected{% endif %}>Xe khách</option>
-                            <option value="Xe container" {% if form_data and form_data.vehicle_type == 'Xe container' %}selected{% endif %}>Xe container</option>
-                            <option value="Xe dịch vụ" {% if form_data and form_data.vehicle_type == 'Xe dịch vụ' %}selected{% endif %}>Xe dịch vụ</option>
+                            <option value="Xe tải">Xe tải</option>
+                            <option value="Xe khách">Xe khách</option>
+                            <option value="Xe container">Xe container</option>
+                            <option value="Xe dịch vụ">Xe dịch vụ</option>
                         </select>
                     </div>
 
@@ -84,7 +84,7 @@
                         <input
                             type="text"
                             name="brand"
-                            value="{{ form_data.brand if form_data else '' }}"
+                            value=""
                             placeholder="Hyundai"
                         >
                     </div>
@@ -92,16 +92,16 @@
                     <div>
                         <label>Trạng thái</label>
                         <select name="status">
-                            <option value="active" {% if form_data and form_data.status == 'active' %}selected{% endif %}>Đang hoạt động</option>
-                            <option value="maintenance" {% if form_data and form_data.status == 'maintenance' %}selected{% endif %}>Bảo trì</option>
-                            <option value="inactive" {% if form_data and form_data.status == 'inactive' %}selected{% endif %}>Ngưng sử dụng</option>
+                            <option value="active">Đang hoạt động</option>
+                            <option value="maintenance">Bảo trì</option>
+                            <option value="inactive">Ngưng sử dụng</option>
                         </select>
                     </div>
                 </div>
 
                 <div class="vehicle-actions" style="margin-bottom:0;">
-                    <a href="/vehicles" class="btn-outline" style="text-decoration:none;">Hủy</a>
-                    <button type="submit" class="btn-outline">Lưu xe</button>
+                    <a href="./vehicles.html" class="btn-outline" style="text-decoration:none;">Hủy</a>
+                    <button type="button" class="btn-outline">Lưu xe</button>
                 </div>
             </form>
         </section>
@@ -109,5 +109,6 @@
     </main>
 
 </div>
+
 </body>
 </html>

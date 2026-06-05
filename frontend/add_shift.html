@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <title>Tạo ca làm việc - DriverGuard AI</title>
 
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/shifts.css') }}">
+    <link rel="stylesheet" href="./static/css/global.css">
+    <link rel="stylesheet" href="./static/css/layout.css">
+    <link rel="stylesheet" href="./static/css/dashboard.css">
+    <link rel="stylesheet" href="./static/css/shifts.css">
 </head>
 <body>
 
@@ -23,15 +23,15 @@
         </div>
 
         <nav class="menu">
-            <a href="/dashboard">📊 Dashboard</a>
-            <a href="/drivers">👥 Tài xế</a>
-            <a href="/vehicles">🚘 Quản lý xe</a>
-            <a href="/shifts" class="active">⏱ Ca làm việc</a>
-            <a href="/camera">📷 Camera AI</a>
-            <a href="/alerts">⚠️ Lịch sử cảnh báo</a>
-            <a href="/stats">📈 Thống kê</a>
-            <a href="/settings">⚙️ Cài đặt</a>
-            <a href="/login">🚪 Đăng xuất</a>
+            <a href="./dashboard.html">📊 Dashboard</a>
+            <a href="./drivers.html">👥 Tài xế</a>
+            <a href="./vehicles.html">🚘 Quản lý xe</a>
+            <a href="./shifts.html" class="active">⏱ Ca làm việc</a>
+            <a href="./camera.html">📷 Camera AI</a>
+            <a href="./alerts.html">⚠️ Lịch sử cảnh báo</a>
+            <a href="./stats.html">📈 Thống kê</a>
+            <a href="./settings.html">⚙️ Cài đặt</a>
+            <a href="./login.html">🚪 Đăng xuất</a>
         </nav>
     </aside>
 
@@ -56,14 +56,14 @@
         </header>
 
         <section class="content">
-            <form class="card shift-table-card" method="POST" action="{{ url_for('add_shift') }}" style="padding:24px;">
+            <form class="card shift-table-card" style="padding:24px;">
                 <div class="shift-summary" style="grid-template-columns:repeat(2,1fr);">
                     <div>
                         <label>Tên ca</label>
                         <input
                             type="text"
                             name="shift_name"
-                            value="{{ form_data.shift_name if form_data else '' }}"
+                            value=""
                             placeholder="Ca sáng"
                         >
                     </div>
@@ -73,7 +73,6 @@
                         <input
                             type="date"
                             name="work_date"
-                            value="{{ form_data.work_date if form_data else '' }}"
                             required
                         >
                     </div>
@@ -82,11 +81,9 @@
                         <label>Tài xế</label>
                         <select name="driver_id" required>
                             <option value="">Chọn tài xế</option>
-                            {% for driver in drivers %}
-                            <option value="{{ driver.id }}" {% if form_data and form_data.driver_id == driver.id %}selected{% endif %}>
-                                {{ driver.full_name }}{% if driver.driver_code %} - {{ driver.driver_code }}{% endif %}
-                            </option>
-                            {% endfor %}
+                            <option value="1">Nguyễn Văn A - TX001</option>
+                            <option value="2">Trần Văn B - TX002</option>
+                            <option value="3">Lê Văn C - TX003</option>
                         </select>
                     </div>
 
@@ -94,11 +91,9 @@
                         <label>Xe phụ trách</label>
                         <select name="vehicle_id" required>
                             <option value="">Chọn xe</option>
-                            {% for vehicle in vehicles %}
-                            <option value="{{ vehicle.id }}" {% if form_data and form_data.vehicle_id == vehicle.id %}selected{% endif %}>
-                                {{ vehicle.plate_number }}{% if vehicle.vehicle_type %} - {{ vehicle.vehicle_type }}{% endif %}
-                            </option>
-                            {% endfor %}
+                            <option value="1">47A-12345 - Xe tải</option>
+                            <option value="2">47B-67890 - Xe khách</option>
+                            <option value="3">47C-24680 - Container</option>
                         </select>
                     </div>
 
@@ -107,7 +102,6 @@
                         <input
                             type="time"
                             name="start_time"
-                            value="{{ form_data.start_time if form_data else '' }}"
                         >
                     </div>
 
@@ -116,24 +110,23 @@
                         <input
                             type="time"
                             name="end_time"
-                            value="{{ form_data.end_time if form_data else '' }}"
                         >
                     </div>
 
                     <div>
                         <label>Trạng thái</label>
                         <select name="status">
-                            <option value="scheduled" {% if form_data and form_data.status == 'scheduled' %}selected{% endif %}>Sắp bắt đầu</option>
-                            <option value="active" {% if form_data and form_data.status == 'active' %}selected{% endif %}>Đang hoạt động</option>
-                            <option value="completed" {% if form_data and form_data.status == 'completed' %}selected{% endif %}>Đã kết thúc</option>
-                            <option value="cancelled" {% if form_data and form_data.status == 'cancelled' %}selected{% endif %}>Đã hủy</option>
+                            <option value="scheduled">Sắp bắt đầu</option>
+                            <option value="active">Đang hoạt động</option>
+                            <option value="completed">Đã kết thúc</option>
+                            <option value="cancelled">Đã hủy</option>
                         </select>
                     </div>
                 </div>
 
                 <div class="shift-actions" style="margin-bottom:0;">
-                    <a href="/shifts" class="btn-outline" style="text-decoration:none;">Hủy</a>
-                    <button type="submit" class="btn-outline">Lưu ca</button>
+                    <a href="./shifts.html" class="btn-outline" style="text-decoration:none;">Hủy</a>
+                    <button type="button" class="btn-outline">Lưu ca</button>
                 </div>
             </form>
         </section>
@@ -141,5 +134,6 @@
     </main>
 
 </div>
+
 </body>
 </html>
