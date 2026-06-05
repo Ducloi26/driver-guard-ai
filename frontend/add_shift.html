@@ -26,7 +26,7 @@
             <a href="./dashboard.html">📊 Dashboard</a>
             <a href="./drivers.html">👥 Tài xế</a>
             <a href="./vehicles.html">🚘 Quản lý xe</a>
-            <a href="./shifts.html" class="active">⏱ Ca làm việc</a>
+            <a href="{{ url_for('shifts') }}" class="active">⏱ Ca làm việc</a>
             <a href="./camera.html">📷 Camera AI</a>
             <a href="./alerts.html">⚠️ Lịch sử cảnh báo</a>
             <a href="./stats.html">📈 Thống kê</a>
@@ -56,14 +56,14 @@
         </header>
 
         <section class="content">
-            <form class="card shift-table-card" style="padding:24px;">
+            <form class="card shift-table-card" method="POST" action="{{ url_for('add_shift') }}" style="padding:24px;">
                 <div class="shift-summary" style="grid-template-columns:repeat(2,1fr);">
                     <div>
                         <label>Tên ca</label>
                         <input
                             type="text"
                             name="shift_name"
-                            value=""
+                            value="{{ form_data.shift_name if form_data else '' }}"
                             placeholder="Ca sáng"
                         >
                     </div>
@@ -73,6 +73,7 @@
                         <input
                             type="date"
                             name="work_date"
+                            value="{{ form_data.work_date if form_data else '' }}"
                             required
                         >
                     </div>
@@ -81,9 +82,11 @@
                         <label>Tài xế</label>
                         <select name="driver_id" required>
                             <option value="">Chọn tài xế</option>
-                            <option value="1">Nguyễn Văn A - TX001</option>
-                            <option value="2">Trần Văn B - TX002</option>
-                            <option value="3">Lê Văn C - TX003</option>
+                            {% for driver in drivers or [] %}
+                            <option value="{{ driver.id }}" {% if form_data and form_data.driver_id == driver.id %}selected{% endif %}>
+                                {{ driver.full_name }}{% if driver.driver_code %} - {{ driver.driver_code }}{% endif %}
+                            </option>
+                            {% endfor %}
                         </select>
                     </div>
 
@@ -91,9 +94,11 @@
                         <label>Xe phụ trách</label>
                         <select name="vehicle_id" required>
                             <option value="">Chọn xe</option>
-                            <option value="1">47A-12345 - Xe tải</option>
-                            <option value="2">47B-67890 - Xe khách</option>
-                            <option value="3">47C-24680 - Container</option>
+                            {% for vehicle in vehicles or [] %}
+                            <option value="{{ vehicle.id }}" {% if form_data and form_data.vehicle_id == vehicle.id %}selected{% endif %}>
+                                {{ vehicle.plate_number }}{% if vehicle.vehicle_type %} - {{ vehicle.vehicle_type }}{% endif %}
+                            </option>
+                            {% endfor %}
                         </select>
                     </div>
 
@@ -102,6 +107,7 @@
                         <input
                             type="time"
                             name="start_time"
+                            value="{{ form_data.start_time if form_data else '' }}"
                         >
                     </div>
 
@@ -110,6 +116,7 @@
                         <input
                             type="time"
                             name="end_time"
+                            value="{{ form_data.end_time if form_data else '' }}"
                         >
                     </div>
 
@@ -125,8 +132,8 @@
                 </div>
 
                 <div class="shift-actions" style="margin-bottom:0;">
-                    <a href="./shifts.html" class="btn-outline" style="text-decoration:none;">Hủy</a>
-                    <button type="button" class="btn-outline">Lưu ca</button>
+                    <a href="{{ url_for('shifts') }}" class="btn-outline" style="text-decoration:none;">Hủy</a>
+                    <button type="submit" class="btn-outline">Lưu ca</button>
                 </div>
             </form>
         </section>
