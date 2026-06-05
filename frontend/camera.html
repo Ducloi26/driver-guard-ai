@@ -4,10 +4,11 @@
     <meta charset="UTF-8">
     <title>Camera AI - DriverGuard AI</title>
 
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/camera.css') }}">
+    <link rel="stylesheet" href="./static/css/global.css">
+    <link rel="stylesheet" href="./static/css/layout.css">
+    <link rel="stylesheet" href="./static/css/dashboard.css">
+    <link rel="stylesheet" href="./static/css/camera.css">
+    <link rel="stylesheet" href="./static/css/logout.css">
 </head>
 <body>
 
@@ -23,15 +24,15 @@
         </div>
 
         <nav class="menu">
-            <a href="/dashboard">📊 Dashboard</a>
-            <a href="/drivers">👥 Tài xế</a>
-            <a href="/vehicles">🚘 Quản lý xe</a>
-            <a href="/shifts">⏱ Ca làm việc</a>
-            <a href="/camera" class="active">📷 Camera AI</a>
-            <a href="/alerts">⚠️ Lịch sử cảnh báo</a>
-            <a href="/stats">📈 Thống kê</a>
-            <a href="/settings">⚙️ Cài đặt</a>
-            <a href="/login">🚪 Đăng xuất</a>
+            <a href="./dashboard.html">📊 Dashboard</a>
+            <a href="./drivers.html">👥 Tài xế</a>
+            <a href="./vehicles.html">🚘 Quản lý xe</a>
+            <a href="./shifts.html">⏱ Ca làm việc</a>
+            <a href="./camera.html" class="active">📷 Camera AI</a>
+            <a href="./alerts.html">⚠️ Lịch sử cảnh báo</a>
+            <a href="./stats.html">📈 Thống kê</a>
+            <a href="./settings.html">⚙️ Cài đặt</a>
+            <a href="./login.html">🚪 Đăng xuất</a>
         </nav>
     </aside>
 
@@ -71,6 +72,7 @@
                         <img
                             src=""
                             class="camera-stream"
+                            id="cameraStream"
                             alt="DriverGuard AI Camera"
                         >
 
@@ -191,10 +193,6 @@
 
 </div>
 
-<link rel="stylesheet" href="{{ url_for('static', filename='css/logout.css') }}">
-<script src="{{ url_for('static', filename='js/logout.js') }}"></script>
-<script src="{{ url_for('static', filename='js/camera.js') }}"></script>
-
 <div class="logout-modal" id="logoutModal">
     <div class="logout-box">
         <div class="logout-icon">⎋</div>
@@ -202,10 +200,13 @@
         <p>Bạn có chắc muốn đăng xuất khỏi hệ thống DriverGuard AI?</p>
         <div class="logout-actions">
             <button class="btn-logout-cancel" onclick="closeLogoutModal()">Hủy</button>
-            <a href="/login" class="btn-logout">Đăng xuất</a>
+            <a href="./login.html" class="btn-logout">Đăng xuất</a>
         </div>
     </div>
 </div>
+
+<script src="./static/js/logout.js"></script>
+<script src="./static/js/camera.js"></script>
 
 </body>
 </html>

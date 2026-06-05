@@ -1,6 +1,10 @@
 flask
-opencv-python
+flask-cors
+gunicorn
+
+opencv-python-headless==4.10.0.84
 mediapipe==0.10.21
+
 numpy==1.26.4
 pandas
 pillow
@@ -8,9 +12,12 @@ requests
 supabase
 python-dotenv
 werkzeug
+
 deepface==0.0.100
 retina-face==0.0.17
+
 tensorflow==2.16.2
 tf-keras==2.16.0
+
 protobuf>=3.20,<5
 ml-dtypes~=0.3.1

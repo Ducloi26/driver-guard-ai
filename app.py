@@ -39,7 +39,14 @@ from models.face_recognition_model import recognize_driver_from_frame, rebuild_a
 from utils.alert_manager import process_violation
 from utils.logger import setup_logger
 
-app = Flask(__name__)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+app = Flask(
+    __name__,
+    template_folder=os.path.join(BASE_DIR, "frontend"),
+    static_folder=os.path.join(BASE_DIR, "frontend", "static")
+)
+
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "driver-guard-ai-dev-secret")
 logger = setup_logger(__name__)
 
@@ -771,6 +778,7 @@ def generate_frames():
             break
 @app.route("/")
 @app.route("/login")
+@app.route("/login.html")
 def login():
     return render_template("login.html")
 
@@ -910,18 +918,27 @@ def enroll_face_from_camera(driver_id):
 
 
 @app.route("/register")
+@app.route("/register.html")
 def register():
     return render_template("register.html")
 
 
 @app.route("/dashboard")
+@app.route("/dashboard.html")
 def dashboard():
     stats = get_dashboard_stats()
     recent_alerts = get_all_alerts(limit=3)
     return render_template("dashboard.html", stats=stats, recent_alerts=recent_alerts)
 
 
+@app.route("/camera")
+@app.route("/camera.html")
+def camera():
+    return render_template("camera.html")
+
+
 @app.route("/drivers")
+@app.route("/drivers.html")
 def drivers():
     drivers_list = get_all_drivers()
     drivers_list = attach_current_shift_to_drivers(drivers_list)
@@ -931,6 +948,7 @@ def drivers():
 
 
 @app.route("/vehicles")
+@app.route("/vehicles.html")
 def vehicles():
     vehicles_list = get_all_vehicles()
     vehicles_list = attach_current_shift_to_vehicles(vehicles_list)
@@ -938,7 +956,42 @@ def vehicles():
     return render_template("vehicles.html", vehicles=vehicles_list, vehicle_stats=vehicle_stats)
 
 
+@app.route("/shifts")
+@app.route("/shifts.html")
+def shifts():
+    shifts_list = get_all_shifts()
+    shift_stats = get_shift_stats(shifts_list)
+    return render_template("shifts.html", shifts=shifts_list, shift_stats=shift_stats)
+
+
+@app.route("/alerts")
+@app.route("/alerts.html")
+def alerts():
+    alerts_list = get_all_alerts()
+    return render_template("alerts.html", alerts=alerts_list)
+
+
+@app.route("/stats")
+@app.route("/stats.html")
+def stats():
+    return render_template("stats.html")
+
+
+@app.route("/settings")
+@app.route("/settings.html")
+def settings():
+    return render_template("settings.html")
+
+
+@app.route("/profile")
+@app.route("/profile.html")
+def profile():
+    return render_template("profile.html")
+
+
 @app.route("/add-vehicle", methods=["GET", "POST"])
+@app.route("/add_vehicle", methods=["GET", "POST"])
+@app.route("/add_vehicle.html", methods=["GET", "POST"])
 def add_vehicle():
     if request.method == "POST":
         form_data = clean_vehicle_form_data(request.form)
@@ -954,14 +1007,9 @@ def add_vehicle():
     return render_template("add_vehicle.html")
 
 
-@app.route("/shifts")
-def shifts():
-    shifts_list = get_all_shifts()
-    shift_stats = get_shift_stats(shifts_list)
-    return render_template("shifts.html", shifts=shifts_list, shift_stats=shift_stats)
-
-
 @app.route("/add-shift", methods=["GET", "POST"])
+@app.route("/add_shift", methods=["GET", "POST"])
+@app.route("/add_shift.html", methods=["GET", "POST"])
 def add_shift():
     drivers_list = get_all_drivers()
     vehicles_list = get_all_vehicles()
@@ -989,28 +1037,9 @@ def add_shift():
     )
 
 
-@app.route("/alerts")
-def alerts():
-    alerts_list = get_all_alerts()
-    return render_template("alerts.html", alerts=alerts_list)
-
-
-@app.route("/stats")
-def stats():
-    return render_template("stats.html")
-
-
-@app.route("/settings")
-def settings():
-    return render_template("settings.html")
-
-
-@app.route("/profile")
-def profile():
-    return render_template("profile.html")
-
-
 @app.route("/add-driver", methods=["GET", "POST"])
+@app.route("/add_driver", methods=["GET", "POST"])
+@app.route("/add_driver.html", methods=["GET", "POST"])
 def add_driver():
     vehicles_list = get_all_vehicles()
 
@@ -1039,8 +1068,6 @@ def add_driver():
                 else:
                     message = f"{message}. Chưa tạo được face encoding: {enc_msg}"
 
-            # Nếu form có chọn xe, tạo luôn một ca làm việc để gán tài xế với xe.
-            # Thông tin gán ca nằm ở bảng shifts, không lưu trực tiếp trong drivers.
             shift_data = {
                 "driver_id": driver_id,
                 "vehicle_id": request.form.get("vehicle_id"),
@@ -1050,6 +1077,7 @@ def add_driver():
                 "end_time": request.form.get("end_time"),
                 "status": "active",
             }
+
             if shift_data.get("vehicle_id"):
                 if not shift_data.get("work_date"):
                     shift_data["work_date"] = datetime.now().date().isoformat()
@@ -1070,15 +1098,13 @@ def add_driver():
 
 
 @app.route("/drivers/<driver_id>")
+@app.route("/driver_detail/<driver_id>")
 def driver_detail(driver_id):
-    # Xem chi tiết một tài xế. get_driver_by_id đã tự lọc theo company_id nên
-    # không lo lấy nhầm tài xế của công ty khác.
     driver = get_driver_by_id(driver_id)
     if not driver:
         flash("Không tìm thấy tài xế", "error")
         return redirect(url_for("drivers"))
 
-    # Tạo URL ảnh có hạn (signed URL) để hiển thị avatar; hàm nhận list nên bọc lại.
     driver = attach_avatar_urls_to_drivers([driver])[0]
     shift = get_current_shift_by_driver(driver_id)
     return render_template("driver_detail.html", driver=driver, shift=shift)
@@ -1092,8 +1118,6 @@ def edit_driver(driver_id):
         return redirect(url_for("drivers"))
 
     if request.method == "POST":
-        # update_driver chỉ nhận các field cốt lõi (không gồm ảnh/ca làm việc),
-        # nên form sửa cũng chỉ chứa đúng các field đó.
         form_data = clean_form_data(request.form)
         success, message = update_driver(driver_id, form_data)
 
@@ -1101,7 +1125,6 @@ def edit_driver(driver_id):
             flash(message, "success")
             return redirect(url_for("drivers"))
 
-        # Lỗi: render lại form với dữ liệu user vừa nhập (ghi đè lên dữ liệu cũ).
         flash(message, "error")
         return render_template("edit_driver.html", driver={**driver, **form_data})
 
@@ -1110,11 +1133,106 @@ def edit_driver(driver_id):
 
 @app.route("/drivers/<driver_id>/delete", methods=["POST"])
 def remove_driver(driver_id):
-    # delete_driver là soft delete: chỉ đổi status sang 'inactive' để giữ lịch sử
-    # cảnh báo liên quan, không xóa cứng khỏi DB.
     success, message = delete_driver(driver_id)
     flash(message, "success" if success else "error")
     return redirect(url_for("drivers"))
+
+
+@app.route("/start_camera", methods=["POST"])
+def start_camera():
+    global camera_stream, camera_running, face_recognition_frame_counter, last_recognition_result
+    global pending_recognition_key, pending_recognition_count
+    global latest_recognition_frame
+
+    if camera_running:
+        return jsonify({
+            "status": "already_running",
+            "known_faces": len(known_face_drivers),
+        })
+
+    refresh_known_face_drivers()
+    face_recognition_frame_counter = 0
+    pending_recognition_key = None
+    pending_recognition_count = 0
+    latest_recognition_frame = None
+    last_recognition_result = {
+        "status": "NOT_READY" if known_face_drivers else "NO_REGISTERED_FACE",
+        "driver": None,
+        "similarity": 0.0,
+        "shift": None,
+    }
+
+    camera_stream = cv2.VideoCapture(0)
+    if not camera_stream.isOpened():
+        camera_stream.release()
+        camera_stream = None
+        return jsonify({"status": "error", "message": "Không thể mở camera"}), 503
+
+    camera_running = True
+    start_recognition_worker()
+
+    return jsonify({
+        "status": "started",
+        "known_faces": len(known_face_drivers),
+    })
+
+
+@app.route("/stop_camera", methods=["POST"])
+def stop_camera():
+    global camera_stream, camera_running, current_driver_id
+
+    camera_running = False
+    stop_recognition_worker()
+
+    if camera_stream is not None:
+        camera_stream.release()
+        camera_stream = None
+
+    current_driver_id = None
+    reset_detection_state()
+
+    return jsonify({"status": "stopped"})
+
+
+@app.route("/camera_status")
+def camera_status():
+    return jsonify(build_camera_status_payload())
+
+
+@app.route("/video_feed")
+def video_feed():
+    if not camera_running:
+        return ""
+
+    return Response(
+        generate_frames(),
+        mimetype="multipart/x-mixed-replace; boundary=frame"
+    )
+
+
+@app.route("/capture_image", methods=["POST"])
+def capture_image():
+    global last_frame
+
+    if last_frame is None:
+        return jsonify({
+            "status": "error",
+            "message": "Chưa có hình ảnh để chụp"
+        })
+
+    save_dir = os.path.join(BASE_DIR, "frontend", "static", "captures")
+    os.makedirs(save_dir, exist_ok=True)
+
+    filename = datetime.now().strftime("capture_%Y%m%d_%H%M%S.jpg")
+    path = os.path.join(save_dir, filename)
+
+    cv2.imwrite(path, last_frame)
+
+    return jsonify({
+        "status": "success",
+        "message": "Đã chụp ảnh minh chứng",
+        "file": f"/static/captures/{filename}"
+    })
 
 
 @app.route("/rebuild_face_encodings", methods=["POST"])
@@ -1127,6 +1245,6 @@ def rebuild_face_encodings():
     result = rebuild_all_face_encodings()
     return jsonify(result)
 
-
 if __name__ == "__main__":
-    app.run(debug=os.environ.get("FLASK_DEBUG", "0") == "1")
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)

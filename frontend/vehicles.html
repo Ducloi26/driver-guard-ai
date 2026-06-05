@@ -4,10 +4,11 @@
     <meta charset="UTF-8">
     <title>Quản lý xe - DriverGuard AI</title>
 
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/vehicles.css') }}">
+    <link rel="stylesheet" href="./static/css/global.css">
+    <link rel="stylesheet" href="./static/css/layout.css">
+    <link rel="stylesheet" href="./static/css/dashboard.css">
+    <link rel="stylesheet" href="./static/css/vehicles.css">
+    <link rel="stylesheet" href="./static/css/logout.css">
 </head>
 <body>
 
@@ -23,15 +24,15 @@
         </div>
 
         <nav class="menu">
-            <a href="/dashboard">📊 Dashboard</a>
-            <a href="/drivers">👥 Tài xế</a>
-            <a href="/vehicles" class="active">🚘 Quản lý xe</a>
-            <a href="/shifts">⏱ Ca làm việc</a>
-            <a href="/camera">📷 Camera AI</a>
-            <a href="/alerts">⚠️ Lịch sử cảnh báo</a>
-            <a href="/stats">📈 Thống kê</a>
-            <a href="/settings">⚙️ Cài đặt</a>
-            <a href="/login">🚪 Đăng xuất</a>
+            <a href="./dashboard.html">📊 Dashboard</a>
+            <a href="./drivers.html">👥 Tài xế</a>
+            <a href="./vehicles.html" class="active">🚘 Quản lý xe</a>
+            <a href="./shifts.html">⏱ Ca làm việc</a>
+            <a href="./camera.html">📷 Camera AI</a>
+            <a href="./alerts.html">⚠️ Lịch sử cảnh báo</a>
+            <a href="./stats.html">📈 Thống kê</a>
+            <a href="./settings.html">⚙️ Cài đặt</a>
+            <a href="./login.html">🚪 Đăng xuất</a>
         </nav>
     </aside>
 
@@ -59,22 +60,22 @@
 
             <div class="vehicle-summary">
                 <div class="vehicle-card">
-                    <h3>{{ vehicle_stats.total_vehicles }}</h3>
+                    <h3>12</h3>
                     <p>Tổng số xe</p>
                 </div>
 
                 <div class="vehicle-card">
-                    <h3>{{ vehicle_stats.active_vehicles }}</h3>
+                    <h3>9</h3>
                     <p>Đang hoạt động</p>
                 </div>
 
                 <div class="vehicle-card">
-                    <h3>{{ vehicle_stats.maintenance_vehicles }}</h3>
+                    <h3>2</h3>
                     <p>Đang bảo trì</p>
                 </div>
 
                 <div class="vehicle-card">
-                    <h3>{{ vehicle_stats.inactive_vehicles }}</h3>
+                    <h3>1</h3>
                     <p>Ngưng sử dụng</p>
                 </div>
             </div>
@@ -100,7 +101,7 @@
                 </div>
 
                 <div>
-                    <a href="/add-vehicle" class="btn-outline" style="text-decoration:none;display:inline-block;">+ Thêm xe</a>
+                    <a href="./add_vehicle.html" class="btn-outline" style="text-decoration:none;display:inline-block;">+ Thêm xe</a>
                 </div>
             </div>
 
@@ -120,48 +121,65 @@
                     </thead>
 
                     <tbody>
-                        {% for vehicle in vehicles %}
-                        {% set shift = vehicle.current_shift %}
-                        {% set driver = shift.drivers if shift and shift.drivers else none %}
                         <tr>
-                            <td><span class="vehicle-plate">{{ vehicle.plate_number }}</span></td>
+                            <td><span class="vehicle-plate">47A-12345</span></td>
                             <td>
-                                <div class="vehicle-type">{{ vehicle.vehicle_type or '-' }}</div>
-                                <div class="vehicle-note">{{ vehicle.id }}</div>
+                                <div class="vehicle-type">Xe tải</div>
+                                <div class="vehicle-note">ID: VX001</div>
                             </td>
-                            <td>{{ vehicle.brand or '-' }}</td>
+                            <td>Hyundai</td>
                             <td>
-                                {% if driver %}
-                                    {{ driver.full_name }}
-                                    <div class="vehicle-note">{{ shift.shift_name or 'Ca làm việc' }}</div>
-                                {% else %}
-                                    Chưa gán
-                                {% endif %}
+                                Nguyễn Văn A
+                                <div class="vehicle-note">Ca sáng</div>
                             </td>
                             <td><span class="badge badge-success">Online</span></td>
-                            <td>
-                                {% if vehicle.status == 'active' %}
-                                    <span class="badge badge-success">Hoạt động</span>
-                                {% elif vehicle.status == 'maintenance' %}
-                                    <span class="badge badge-warning">Bảo trì</span>
-                                {% else %}
-                                    <span class="badge badge-danger">Ngưng sử dụng</span>
-                                {% endif %}
-                            </td>
-                            <td>Dữ liệu từ Supabase</td>
+                            <td><span class="badge badge-success">Hoạt động</span></td>
+                            <td>Dữ liệu mẫu frontend</td>
                             <td>
                                 <button class="btn-small btn-view" type="button">Xem</button>
                                 <button class="btn-small btn-edit" type="button">Sửa</button>
                                 <button class="btn-small btn-delete" type="button">Xóa</button>
                             </td>
                         </tr>
-                        {% else %}
+
                         <tr>
-                            <td colspan="8" style="text-align:center;padding:28px;">
-                                Chưa có xe trong hệ thống
+                            <td><span class="vehicle-plate">47B-67890</span></td>
+                            <td>
+                                <div class="vehicle-type">Xe khách</div>
+                                <div class="vehicle-note">ID: VX002</div>
+                            </td>
+                            <td>Thaco</td>
+                            <td>
+                                Trần Văn B
+                                <div class="vehicle-note">Ca chiều</div>
+                            </td>
+                            <td><span class="badge badge-success">Online</span></td>
+                            <td><span class="badge badge-warning">Bảo trì</span></td>
+                            <td>Đang kiểm tra định kỳ</td>
+                            <td>
+                                <button class="btn-small btn-view" type="button">Xem</button>
+                                <button class="btn-small btn-edit" type="button">Sửa</button>
+                                <button class="btn-small btn-delete" type="button">Xóa</button>
                             </td>
                         </tr>
-                        {% endfor %}
+
+                        <tr>
+                            <td><span class="vehicle-plate">47C-24680</span></td>
+                            <td>
+                                <div class="vehicle-type">Xe container</div>
+                                <div class="vehicle-note">ID: VX003</div>
+                            </td>
+                            <td>Isuzu</td>
+                            <td>Chưa gán</td>
+                            <td><span class="badge badge-danger">Offline</span></td>
+                            <td><span class="badge badge-danger">Ngưng sử dụng</span></td>
+                            <td>Chờ phân công tài xế</td>
+                            <td>
+                                <button class="btn-small btn-view" type="button">Xem</button>
+                                <button class="btn-small btn-edit" type="button">Sửa</button>
+                                <button class="btn-small btn-delete" type="button">Xóa</button>
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
@@ -171,8 +189,6 @@
     </main>
 
 </div>
-<link rel="stylesheet" href="{{ url_for('static', filename='css/logout.css') }}">
-<script src="{{ url_for('static', filename='js/logout.js') }}"></script>
 
 <div class="logout-modal" id="logoutModal">
 
@@ -198,7 +214,7 @@
             </button>
 
             <a
-                href="/login"
+                href="./login.html"
                 class="btn-logout"
             >
                 Đăng xuất
@@ -209,5 +225,8 @@
     </div>
 
 </div>
+
+<script src="./static/js/logout.js"></script>
+
 </body>
 </html>

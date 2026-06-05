@@ -4,9 +4,10 @@
     <meta charset="UTF-8">
     <title>Dashboard - DriverGuard AI</title>
 
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <link rel="stylesheet" href="./static/css/global.css">
+    <link rel="stylesheet" href="./static/css/layout.css">
+    <link rel="stylesheet" href="./static/css/dashboard.css">
+    <link rel="stylesheet" href="./static/css/logout.css">
 </head>
 <body>
 
@@ -22,15 +23,15 @@
         </div>
 
         <nav class="menu">
-            <a href="/dashboard" class="active">📊 Dashboard</a>
-            <a href="/drivers">👥 Tài xế</a>
-            <a href="/vehicles">🚘 Quản lý xe</a>
-            <a href="/shifts">⏱ Ca làm việc</a>
-            <a href="/camera">📷 Camera AI</a>
-            <a href="/alerts">⚠️ Lịch sử cảnh báo</a>
-            <a href="/stats">📈 Thống kê</a>
-            <a href="/settings">⚙️ Cài đặt</a>
-            <a href="/login">🚪 Đăng xuất</a>
+            <a href="./dashboard.html" class="active">📊 Dashboard</a>
+            <a href="./drivers.html">👥 Tài xế</a>
+            <a href="./vehicles.html">🚘 Quản lý xe</a>
+            <a href="./shifts.html">⏱ Ca làm việc</a>
+            <a href="./camera.html">📷 Camera AI</a>
+            <a href="./alerts.html">⚠️ Lịch sử cảnh báo</a>
+            <a href="./stats.html">📈 Thống kê</a>
+            <a href="./settings.html">⚙️ Cài đặt</a>
+            <a href="./login.html">🚪 Đăng xuất</a>
         </nav>
     </aside>
 
@@ -59,19 +60,19 @@
             <div class="metric-grid">
                 <div class="metric-card blue">
                     <div class="metric-title">Tổng tài xế</div>
-                    <div class="metric-value">{{ stats.total_drivers }}</div>
+                    <div class="metric-value" id="totalDrivers">24</div>
                     <div class="metric-sub">Tài xế đang hoạt động</div>
                 </div>
 
                 <div class="metric-card success">
                     <div class="metric-title">Tổng số xe</div>
-                    <div class="metric-value">{{ stats.total_vehicles }}</div>
+                    <div class="metric-value" id="totalVehicles">12</div>
                     <div class="metric-sub">Xe đang hoạt động</div>
                 </div>
 
                 <div class="metric-card danger">
                     <div class="metric-title">Cảnh báo hôm nay</div>
-                    <div class="metric-value">{{ stats.total_alerts_today }}</div>
+                    <div class="metric-value" id="totalAlertsToday">8</div>
                     <div class="metric-sub">Theo ngày hiện tại</div>
                 </div>
             </div>
@@ -79,20 +80,20 @@
             <div class="metric-grid">
                 <div class="metric-card warning">
                     <div class="metric-title">Cảnh báo nguy hiểm</div>
-                    <div class="metric-value">{{ stats.high_alerts_today }}</div>
+                    <div class="metric-value" id="highAlertsToday">3</div>
                     <div class="metric-sub">Mức cao trong hôm nay</div>
                 </div>
 
                 <div class="metric-card blue">
                     <div class="metric-title">Ca đang hoạt động</div>
-                    <div class="metric-value">{{ stats.active_shifts }}</div>
+                    <div class="metric-value" id="activeShifts">5</div>
                     <div class="metric-sub">Ca đang diễn ra</div>
                 </div>
 
                 <div class="metric-card success">
                     <div class="metric-title">Camera online</div>
-                    <div class="metric-value">--</div>
-                    <div class="metric-sub">Chưa có dữ liệu giám sát camera</div>
+                    <div class="metric-value" id="cameraOnline">1</div>
+                    <div class="metric-sub">Camera giám sát đang hoạt động</div>
                 </div>
             </div>
 
@@ -173,25 +174,33 @@
                         </tr>
                     </thead>
 
-                    <tbody>
-                        {% for alert in recent_alerts %}
+                    <tbody id="recentAlertsTable">
                         <tr>
-                            <td>{{ alert.drivers.full_name if alert.drivers else 'Không xác định' }}</td>
-                            <td>{{ alert.vehicles.plate_number if alert.vehicles else 'Chưa gán' }}</td>
-                            <td>{{ alert.alert_type }}</td>
-                            <td>
-                                <span class="badge {% if alert.alert_level == 'high' %}badge-danger{% elif alert.alert_level == 'medium' %}badge-warning{% else %}badge-success{% endif %}">
-                                    {{ alert.alert_level | upper }}
-                                </span>
-                            </td>
-                            <td>{{ (alert.alert_time[11:16] ~ ' - ' ~ alert.alert_time[8:10] ~ '/' ~ alert.alert_time[5:7]) if alert.alert_time else '--:-- - --/--' }}</td>
+                            <td>Nguyễn Văn A</td>
+                            <td>47A-12345</td>
+                            <td>Nhắm mắt lâu</td>
+                            <td><span class="badge badge-danger">HIGH</span></td>
+                            <td>13:35 - 05/06</td>
                             <td><span class="badge badge-warning">Mới ghi nhận</span></td>
                         </tr>
-                        {% else %}
+
                         <tr>
-                            <td colspan="6" style="text-align:center;">Chưa có cảnh báo nào.</td>
+                            <td>Trần Văn B</td>
+                            <td>47B-67890</td>
+                            <td>Ngáp liên tục</td>
+                            <td><span class="badge badge-warning">MEDIUM</span></td>
+                            <td>12:20 - 05/06</td>
+                            <td><span class="badge badge-warning">Mới ghi nhận</span></td>
                         </tr>
-                        {% endfor %}
+
+                        <tr>
+                            <td>Lê Văn C</td>
+                            <td>47C-24680</td>
+                            <td>Gục đầu</td>
+                            <td><span class="badge badge-success">LOW</span></td>
+                            <td>10:45 - 05/06</td>
+                            <td><span class="badge badge-warning">Mới ghi nhận</span></td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
@@ -201,8 +210,6 @@
     </main>
 
 </div>
-<link rel="stylesheet" href="{{ url_for('static', filename='css/logout.css') }}">
-<script src="{{ url_for('static', filename='js/logout.js') }}"></script>
 
 <div class="logout-modal" id="logoutModal">
 
@@ -228,7 +235,7 @@
             </button>
 
             <a
-                href="/login"
+                href="./login.html"
                 class="btn-logout"
             >
                 Đăng xuất
@@ -239,5 +246,9 @@
     </div>
 
 </div>
+
+<script src="./static/js/logout.js"></script>
+<script src="./static/js/dashboard.js"></script>
+
 </body>
 </html>
