@@ -1343,8 +1343,8 @@ def analyze_frame():
 @app.route("/debug-env")
 def debug_env():
     import os
-
     return {
+        "TEST_ENV": os.getenv("TEST_ENV"),
         "SUPABASE_URL_EXISTS": bool(os.getenv("SUPABASE_URL")),
         "SERVICE_ROLE_EXISTS": bool(os.getenv("SUPABASE_SERVICE_ROLE_KEY")),
         "ANON_KEY_EXISTS": bool(os.getenv("SUPABASE_ANON_KEY")),
