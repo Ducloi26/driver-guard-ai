@@ -1,6 +1,18 @@
+const BACKEND_URL = "https://driver-guard-ai-production.up.railway.app";
+
 const cameraImg = document.querySelector(".camera-stream");
 
 let cameraStatusTimer = null;
+let webcamStream = null;
+let analyzeTimer = null;
+
+const videoElement = document.createElement("video");
+videoElement.autoplay = true;
+videoElement.playsInline = true;
+videoElement.muted = true;
+
+const canvasElement = document.createElement("canvas");
+const canvasContext = canvasElement.getContext("2d");
 
 function textOrDash(value) {
     return value || "--";
@@ -21,35 +33,41 @@ function getInitials(name) {
 }
 
 function setBadge(element, text, className) {
+    if (!element) return;
     element.textContent = text;
     element.className = `badge ${className}`;
 }
 
 const AI_STATUS_MAP = {
-    "EYES OPEN":   { text: "Mở",     css: "status-success" },
-    "EYES CLOSED": { text: "Nhắm",   css: "status-danger"  },
-    "NO FACE":     { text: "--",      css: ""               },
-    "NORMAL":      { text: "Bình thường", css: "status-success" },
-    "MOUTH OPEN":  { text: "Mở",     css: "status-warning" },
-    "YAWNING":     { text: "Ngáp",   css: "status-danger"  },
-    "HEAD DOWN":   { text: "Cúi",    css: "status-danger"  },
+    "EYES OPEN": { text: "Mở", css: "status-success" },
+    "EYES CLOSED": { text: "Nhắm", css: "status-danger" },
+    "NO FACE": { text: "--", css: "" },
+    "NORMAL": { text: "Bình thường", css: "status-success" },
+    "MOUTH OPEN": { text: "Mở", css: "status-warning" },
+    "YAWNING": { text: "Ngáp", css: "status-danger" },
+    "HEAD DOWN": { text: "Cúi", css: "status-danger" },
 };
 
 const DROWSY_LEVEL_MAP = {
-    "NORMAL":          { text: "Thấp",  css: "status-success" },
-    "TIRED":           { text: "Trung bình", css: "status-warning" },
-    "DROWSY":          { text: "Cao",   css: "status-danger"  },
-    "HEAD DOWN ALERT": { text: "Cao",   css: "status-danger"  },
+    "NORMAL": { text: "Thấp", css: "status-success" },
+    "TIRED": { text: "Trung bình", css: "status-warning" },
+    "DROWSY": { text: "Cao", css: "status-danger" },
+    "HEAD DOWN ALERT": { text: "Cao", css: "status-danger" },
 };
+
+let aiLogEntries = [];
 
 function setStatusBox(id, mapped) {
     const box = document.getElementById(id);
     if (!box) return;
-    box.querySelector("strong").textContent = mapped.text;
+
+    const strong = box.querySelector("strong");
+    if (strong) {
+        strong.textContent = mapped.text;
+    }
+
     box.className = "status-box " + mapped.css;
 }
-
-let aiLogEntries = [];
 
 function updateAIStatus(ai) {
     if (!ai) return;
@@ -69,8 +87,8 @@ function updateAIStatus(ai) {
 
     if (ai.eye_status === "EYES CLOSED") {
         newEntry = { title: "Phát hiện nhắm mắt", detail: `${now} - EAR: ${ai.ear ?? "--"}` };
-    } else if (ai.mouth_status === "YAWNING") {
-        newEntry = { title: "Phát hiện ngáp", detail: `${now} - MAR: ${ai.mar ?? "--"}` };
+    } else if (ai.mouth_status === "MOUTH OPEN") {
+        newEntry = { title: "Phát hiện mở miệng/ngáp", detail: `${now} - MAR: ${ai.mar ?? "--"}` };
     } else if (ai.head_status === "HEAD DOWN") {
         newEntry = { title: "Phát hiện cúi đầu", detail: `${now} - Đầu cúi xuống` };
     } else if (ai.drowsy_status === "DROWSY" || ai.drowsy_status === "TIRED") {
@@ -87,13 +105,17 @@ function updateAIStatus(ai) {
 function createLogItem(title, detail) {
     const item = document.createElement("div");
     item.className = "log-item";
+
     const strong = document.createElement("strong");
     strong.textContent = title;
+
     const time = document.createElement("div");
     time.className = "log-time";
     time.textContent = detail;
+
     item.appendChild(strong);
     item.appendChild(time);
+
     return item;
 }
 
@@ -114,6 +136,10 @@ function renderAILog() {
 }
 
 function updateCameraPanel(data) {
+    const ai = data.ai || data;
+
+    updateAIStatus(ai);
+
     const driverName = document.getElementById("cameraDriverName");
     const driverAvatar = document.getElementById("cameraDriverAvatar");
     const driverVerify = document.getElementById("cameraDriverVerify");
@@ -127,133 +153,141 @@ function updateCameraPanel(data) {
     const vehicleChip = document.getElementById("cameraVehicleChip");
     const statusChip = document.getElementById("cameraStatusChip");
 
-    updateAIStatus(data.ai);
+    if (driverName) driverName.textContent = "Camera trình duyệt";
+    if (driverAvatar) driverAvatar.textContent = "AI";
+    if (driverVerify) driverVerify.textContent = "Đang phân tích webcam từ trình duyệt";
+    if (vehiclePlate) vehiclePlate.textContent = "--";
+    if (shiftInfo) shiftInfo.textContent = "--";
+    if (driverPhone) driverPhone.textContent = "--";
 
-    if (data.status === "RECOGNIZED") {
-        driverName.textContent = data.driver_name;
-        driverAvatar.textContent = getInitials(data.driver_name);
-        driverVerify.textContent = `Đã xác thực khuôn mặt - độ chính xác ${data.confidence}%`;
-        vehiclePlate.textContent = textOrDash(data.vehicle_plate);
-        shiftInfo.textContent = `${textOrDash(data.shift_name)} | ${textOrDash(data.shift_time)}`;
-        driverPhone.textContent = textOrDash(data.phone);
-        setBadge(recognitionBadge, "Đã xác thực", "badge-success");
-
-        driverChip.textContent = `Tài xế: ${data.driver_name}`;
-        confidenceChip.textContent = `Độ khớp: ${data.confidence}%`;
-        vehicleChip.textContent = `Xe: ${textOrDash(data.vehicle_plate)}`;
-        statusChip.textContent = "Trạng thái: Đã nhận diện";
-        statusChip.classList.remove("danger");
-        return;
+    if (recognitionBadge) {
+        setBadge(recognitionBadge, "AI realtime", "badge-success");
     }
 
-    if (data.status === "UNKNOWN_DRIVER") {
-        driverName.textContent = "Không xác định";
-        driverAvatar.textContent = "??";
-        driverVerify.textContent = `Không khớp dữ liệu tài xế - độ gần nhất ${data.confidence}%`;
-        vehiclePlate.textContent = "--";
-        shiftInfo.textContent = "--";
-        driverPhone.textContent = "--";
-        setBadge(recognitionBadge, "Không xác định", "badge-danger");
+    if (driverChip) driverChip.textContent = "Tài xế: Đang phân tích";
+    if (confidenceChip) confidenceChip.textContent = `EAR: ${ai.ear ?? "--"} | MAR: ${ai.mar ?? "--"}`;
+    if (vehicleChip) vehicleChip.textContent = "Xe: --";
 
-        driverChip.textContent = "Tài xế: Không xác định";
-        confidenceChip.textContent = `Độ khớp: ${data.confidence}%`;
-        vehicleChip.textContent = "Xe: --";
-        statusChip.textContent = "Trạng thái: Chưa khớp dữ liệu";
-        statusChip.classList.add("danger");
-        return;
-    }
-
-    driverName.textContent = "Đang chờ nhận diện";
-    driverAvatar.textContent = "--";
-    driverVerify.textContent = "Camera chưa xác thực tài xế";
-    vehiclePlate.textContent = "--";
-    shiftInfo.textContent = "--";
-    driverPhone.textContent = "--";
-    setBadge(recognitionBadge, "Đang chờ", "badge-warning");
-
-    driverChip.textContent = "Tài xế: Đang chờ";
-    confidenceChip.textContent = "Độ khớp: --";
-    vehicleChip.textContent = "Xe: --";
-    statusChip.textContent = "Trạng thái: Đang phân tích";
-    statusChip.classList.remove("danger");
-}
-
-function refreshCameraStatus() {
-    fetch("/camera_status")
-        .then(response => response.json())
-        .then(updateCameraPanel)
-        .catch(error => {
-            console.error("Lỗi refreshCameraStatus:", error);
-        });
-}
-
-function startStatusPolling() {
-    refreshCameraStatus();
-
-    if (cameraStatusTimer) {
-        clearInterval(cameraStatusTimer);
-    }
-
-    cameraStatusTimer = setInterval(refreshCameraStatus, 1000);
-}
-
-function stopStatusPolling() {
-    if (cameraStatusTimer) {
-        clearInterval(cameraStatusTimer);
-        cameraStatusTimer = null;
-    }
-}
-
-function startCamera() {
-    fetch("/start_camera", {
-        method: "POST",
-    })
-    .then(async response => {
-        const data = await response.json();
-        if (!response.ok) {
-            throw new Error(data.message || "Không thể bắt đầu camera");
+    if (statusChip) {
+        statusChip.textContent = `Trạng thái: ${ai.drowsy_status || "NORMAL"}`;
+        if (ai.drowsy_status && ai.drowsy_status !== "NORMAL") {
+            statusChip.classList.add("danger");
+        } else {
+            statusChip.classList.remove("danger");
         }
-        return data;
-    })
-    .then(data => {
-        cameraImg.src = "/video_feed?t=" + new Date().getTime();
-        startStatusPolling();
-    })
-    .catch(error => {
+    }
+}
+
+function drawVideoToPreview() {
+    if (!cameraImg || !videoElement.videoWidth) return;
+
+    canvasElement.width = videoElement.videoWidth;
+    canvasElement.height = videoElement.videoHeight;
+
+    canvasContext.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
+
+    cameraImg.src = canvasElement.toDataURL("image/jpeg", 0.75);
+
+    if (webcamStream) {
+        requestAnimationFrame(drawVideoToPreview);
+    }
+}
+
+async function analyzeCurrentFrame() {
+    if (!webcamStream || !videoElement.videoWidth) return;
+
+    canvasElement.width = 320;
+    canvasElement.height = 240;
+
+    canvasContext.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
+
+    const imageBase64 = canvasElement.toDataURL("image/jpeg", 0.7);
+
+    try {
+        const response = await fetch(`${BACKEND_URL}/api/analyze_frame`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                image: imageBase64,
+            }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || "Không phân tích được frame");
+        }
+
+        updateCameraPanel(data);
+    } catch (error) {
+        console.error("Lỗi analyzeCurrentFrame:", error);
+    }
+}
+
+async function startCamera() {
+    try {
+        webcamStream = await navigator.mediaDevices.getUserMedia({
+            video: {
+                width: { ideal: 640 },
+                height: { ideal: 480 },
+                facingMode: "user",
+            },
+            audio: false,
+        });
+
+        videoElement.srcObject = webcamStream;
+
+        await videoElement.play();
+
+        drawVideoToPreview();
+
+        if (analyzeTimer) {
+            clearInterval(analyzeTimer);
+        }
+
+        analyzeTimer = setInterval(analyzeCurrentFrame, 700);
+
+        aiLogEntries = [];
+        renderAILog();
+
+        alert("Đã bật camera trình duyệt");
+    } catch (error) {
         console.error("Lỗi startCamera:", error);
-        alert(error.message || "Không thể bắt đầu camera");
-    });
+        alert("Không thể mở camera trình duyệt. Hãy cấp quyền camera cho website.");
+    }
 }
 
 function stopCamera() {
-    fetch("/stop_camera", {
-        method: "POST"
-    })
-    .then(response => response.json())
-    .then(data => {
+    if (analyzeTimer) {
+        clearInterval(analyzeTimer);
+        analyzeTimer = null;
+    }
+
+    if (webcamStream) {
+        webcamStream.getTracks().forEach(track => track.stop());
+        webcamStream = null;
+    }
+
+    if (cameraImg) {
         cameraImg.src = "";
-        stopStatusPolling();
-        refreshCameraStatus();
-        aiLogEntries = [];
-        renderAILog();
-        alert("Đã dừng camera");
-    })
-    .catch(error => {
-        console.error("Lỗi stopCamera:", error);
-        alert("Không thể dừng camera");
-    });
+    }
+
+    aiLogEntries = [];
+    renderAILog();
+
+    alert("Đã dừng camera");
 }
 
 function captureImage() {
-    fetch("/capture_image", {
-        method: "POST"
-    })
-    .then(response => response.json())
-    .then(data => {
-        alert(data.message);
-    })
-    .catch(error => {
-        console.error("Lỗi captureImage:", error);
-        alert("Không thể chụp ảnh minh chứng");
-    });
+    if (!cameraImg || !cameraImg.src) {
+        alert("Chưa có hình ảnh để chụp");
+        return;
+    }
+
+    const link = document.createElement("a");
+    link.href = cameraImg.src;
+    link.download = `driverguard_capture_${Date.now()}.jpg`;
+    link.click();
 }
