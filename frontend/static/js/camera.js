@@ -360,15 +360,55 @@ function stopCamera() {
 }
 
 function captureImage() {
-    if (!cameraImg || !cameraImg.src) {
-        alert("Chưa có hình ảnh để chụp");
+    fetch("/capture_image", {
+        method: "POST"
+    })
+    .then(response => response.json())
+    .then(data => {
+        alert(data.message);
+    })
+    .catch(error => {
+        console.error("Lỗi captureImage:", error);
+        alert("Không thể chụp ảnh minh chứng");
+    });
+}
+
+function enrollRecognizedFace() {
+    if (!currentRecognizedDriverId) {
+        alert("Camera chua xac thuc tai xe");
         return;
     }
 
-    const link = document.createElement("a");
-    link.href = cameraImg.src;
-    link.download = `driverguard_capture_${Date.now()}.jpg`;
-    link.click();
+    const enrollFaceButton = document.getElementById("enrollFaceButton");
+    if (enrollFaceButton) {
+        enrollFaceButton.disabled = true;
+        enrollFaceButton.textContent = "Dang ghi...";
+    }
+
+    fetch(`/drivers/${currentRecognizedDriverId}/enroll_face_from_camera`, {
+        method: "POST"
+    })
+    .then(async response => {
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.message || "Khong the ghi mau khuon mat");
+        }
+        return data;
+    })
+    .then(data => {
+        alert(data.message || "Da ghi mau khuon mat");
+        refreshCameraStatus();
+    })
+    .catch(error => {
+        console.error("Loi enrollRecognizedFace:", error);
+        alert(error.message || "Khong the ghi mau khuon mat");
+    })
+    .finally(() => {
+        if (enrollFaceButton) {
+            enrollFaceButton.textContent = "Ghi mau khuon mat";
+            enrollFaceButton.disabled = !currentRecognizedDriverId;
+        }
+    });
 }
 
 document.addEventListener("DOMContentLoaded", () => {

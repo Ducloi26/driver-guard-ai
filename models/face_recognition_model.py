@@ -26,8 +26,9 @@ from database import (
 logger = logging.getLogger(__name__)
 
 DEEPFACE_MODEL_NAME = "Facenet512"
-DEEPFACE_DETECTOR_BACKEND = "retinaface"
+DEEPFACE_DETECTOR_BACKEND = "opencv"
 DEEPFACE_EMBEDDING_DIM = 512
+MAX_FACE_ENCODINGS_PER_DRIVER = 8
 
 
 def decode_image_bytes(image_bytes: bytes):
@@ -188,6 +189,60 @@ def cosine_similarity(vector_a: list[float], vector_b: list[float]) -> float:
     return float(np.dot(a, b) / (norm_a * norm_b))
 
 
+def is_numeric_vector(value, expected_dim: int | None = None) -> bool:
+    if not isinstance(value, list):
+        return False
+
+    if expected_dim is not None and len(value) != expected_dim:
+        return False
+
+    return all(isinstance(item, (int, float)) for item in value)
+
+
+def extract_face_encoding_vectors(face_encoding) -> list[list[float]]:
+    """
+    Read face_encoding from the legacy single-vector format or the newer
+    multi-vector JSON format stored in the same drivers.face_encoding column.
+    """
+    if not face_encoding:
+        return []
+
+    if is_numeric_vector(face_encoding, DEEPFACE_EMBEDDING_DIM):
+        return [face_encoding]
+
+    if isinstance(face_encoding, dict):
+        encodings = face_encoding.get("encodings") or []
+        return [
+            encoding
+            for encoding in encodings
+            if is_numeric_vector(encoding, DEEPFACE_EMBEDDING_DIM)
+        ]
+
+    if isinstance(face_encoding, list):
+        return [
+            encoding
+            for encoding in face_encoding
+            if is_numeric_vector(encoding, DEEPFACE_EMBEDDING_DIM)
+        ]
+
+    return []
+
+
+def build_multi_face_encoding_payload(encodings: list[list[float]]) -> dict:
+    clean_encodings = [
+        encoding
+        for encoding in encodings
+        if is_numeric_vector(encoding, DEEPFACE_EMBEDDING_DIM)
+    ]
+
+    return {
+        "model": DEEPFACE_MODEL_NAME,
+        "detector": DEEPFACE_DETECTOR_BACKEND,
+        "dim": DEEPFACE_EMBEDDING_DIM,
+        "encodings": clean_encodings[-MAX_FACE_ENCODINGS_PER_DRIVER:],
+    }
+
+
 def compare_face_embedding(current_embedding: list[float], known_faces: list[dict]) -> dict:
     """
     So sánh khuôn mặt hiện tại với danh sách tài xế đã có encoding.
@@ -198,20 +253,17 @@ def compare_face_embedding(current_embedding: list[float], known_faces: list[dic
         "similarity": -1.0,
     }
 
-    current_dim = len(current_embedding) if current_embedding else 0
-
     for driver in known_faces or []:
-        saved_embedding = driver.get("face_encoding")
-        if not saved_embedding or len(saved_embedding) != current_dim:
-            continue
+        saved_embeddings = extract_face_encoding_vectors(driver.get("face_encoding"))
 
-        similarity = cosine_similarity(current_embedding, saved_embedding)
+        for saved_embedding in saved_embeddings:
+            similarity = cosine_similarity(current_embedding, saved_embedding)
 
-        if similarity > best_match["similarity"]:
-            best_match = {
-                "driver": driver,
-                "similarity": similarity,
-            }
+            if similarity > best_match["similarity"]:
+                best_match = {
+                    "driver": driver,
+                    "similarity": similarity,
+                }
 
     return best_match
 
@@ -284,7 +336,31 @@ def build_face_encoding_for_driver(driver: dict) -> tuple[bool, str]:
     if len(face_encoding) != DEEPFACE_EMBEDDING_DIM:
         return False, f"Embedding sai kích thước: {len(face_encoding)} (cần {DEEPFACE_EMBEDDING_DIM})"
 
-    return update_driver_face_encoding(driver_id, face_encoding)
+    payload = build_multi_face_encoding_payload([face_encoding])
+    return update_driver_face_encoding(driver_id, payload)
+
+
+def append_face_encoding_from_frame(driver: dict, frame_bgr) -> tuple[bool, str]:
+    """
+    Add one camera-captured face encoding to the existing driver.face_encoding
+    JSONB value without changing the database schema.
+    """
+    driver_id = driver.get("id")
+    if not driver_id:
+        return False, "Thiếu driver_id"
+
+    new_encoding = extract_face_embedding(frame_bgr)
+    if new_encoding is None:
+        return False, "Không phát hiện được khuôn mặt rõ ràng từ camera"
+
+    existing_encodings = extract_face_encoding_vectors(driver.get("face_encoding"))
+    payload = build_multi_face_encoding_payload(existing_encodings + [new_encoding])
+    ok, message = update_driver_face_encoding(driver_id, payload)
+
+    if not ok:
+        return ok, message
+
+    return True, f"{message}. Tổng mẫu khuôn mặt: {len(payload['encodings'])}"
 
 
 def build_missing_face_encodings() -> dict:

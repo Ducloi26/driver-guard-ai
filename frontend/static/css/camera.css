@@ -143,6 +143,12 @@
     transform:translateY(-1px);
 }
 
+.camera-actions button:disabled{
+    opacity:.45;
+    cursor:not-allowed;
+    transform:none;
+}
+
 .side-panel{
     display:flex;
     flex-direction:column;
