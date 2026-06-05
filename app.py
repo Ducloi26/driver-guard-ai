@@ -1338,7 +1338,18 @@ def analyze_frame():
     except Exception as e:
         logger.error(f"Lỗi analyze_frame: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
+    
 
+@app.route("/debug-env")
+def debug_env():
+    import os
+    return {
+        "TEST_ENV": os.getenv("TEST_ENV"),
+        "SUPABASE_URL_EXISTS": bool(os.getenv("SUPABASE_URL")),
+        "SERVICE_ROLE_EXISTS": bool(os.getenv("SUPABASE_SERVICE_ROLE_KEY")),
+        "ANON_KEY_EXISTS": bool(os.getenv("SUPABASE_ANON_KEY")),
+        "COMPANY_ID_EXISTS": bool(os.getenv("DEFAULT_COMPANY_ID")),
+    }
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
