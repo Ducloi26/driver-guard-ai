@@ -1,6 +1,6 @@
 from flask import Flask, render_template, Response, jsonify, request, redirect, url_for, flash, session
 from functools import wraps
-from werkzeug.security import check_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 import cv2
 import csv
 import io
@@ -27,6 +27,9 @@ from database import (
     attach_current_shift_to_vehicles,
     get_vehicle_stats,
     add_vehicle as add_vehicle_record,
+    get_vehicle_by_id,
+    update_vehicle,
+    delete_vehicle,
     get_all_shifts,
     get_shift_stats,
     add_shift as add_shift_record,
@@ -36,10 +39,15 @@ from database import (
     get_drivers_with_face_encoding,
     get_current_shift_by_driver,
     get_admin_by_username,
+    update_admin_password,
     get_driver_by_id,
     update_driver,
     delete_driver,
     get_driver_stats,
+    clean_settings_form_data,
+    get_alert_settings,
+    update_alert_settings,
+    ALERT_SETTINGS_DEFAULTS,
 )
 from models.ear_calculator import calculate_ear, LEFT_EYE_INDEXES, RIGHT_EYE_INDEXES
 from models.mar_calculator import calculate_mar, MOUTH_INDEXES
@@ -116,9 +124,6 @@ face_mesh = mp_face_mesh.FaceMesh(
     min_detection_confidence=0.5,
     min_tracking_confidence=0.5
 )
-MAR_THRESHOLD = 0.3
-EAR_THRESHOLD = 0.22
-
 EYES_CLOSED_ALERT_SECONDS = 3.0
 BLINK_MAX_SECONDS = 0.5
 
@@ -176,6 +181,29 @@ def reset_detection_state():
         "ear": None,
         "mar": None,
     }
+
+
+def apply_alert_settings_to_detector():
+    """
+    Nạp ngưỡng AI từ alert_settings vào detector (đọc 1 lần, cập nhật tại chỗ).
+
+    Gọi khi bắt đầu camera và sau khi lưu Cài đặt — KHÔNG gọi trong vòng lặp
+    frame (tránh query DB liên tục). Cập nhật thuộc tính tại chỗ để giữ nguyên
+    state đếm thời gian của detector. eyes_seconds giữ cố định theo thiết kế
+    (alert_settings không có cột này).
+    """
+    try:
+        s = get_alert_settings()
+        detector.ear_threshold = float(s.get("ear_threshold") or detector.ear_threshold)
+        detector.mar_threshold = float(s.get("mar_threshold") or detector.mar_threshold)
+        detector.mouth_seconds = float(s.get("yawn_seconds") or detector.mouth_seconds)
+        detector.head_seconds = float(s.get("head_down_seconds") or detector.head_seconds)
+        logger.info(
+            f"Áp dụng ngưỡng AI: EAR<{detector.ear_threshold} MAR>{detector.mar_threshold} "
+            f"yawn={detector.mouth_seconds}s head={detector.head_seconds}s"
+        )
+    except Exception as e:
+        logger.error(f"apply_alert_settings_to_detector() lỗi: {e}")
 
 
 def refresh_known_face_drivers():
@@ -545,7 +573,7 @@ def generate_frames():
                         left_ear = calculate_ear(left_eye)
                         right_ear = calculate_ear(right_eye)
                         ear = (left_ear + right_ear) / 2.0
-                        eye_status = "EYES CLOSED" if ear < EAR_THRESHOLD else "EYES OPEN"
+                        eye_status = "EYES CLOSED" if ear < detector.ear_threshold else "EYES OPEN"
 
                     if len(mouth_points) == 6:
                         mar = calculate_mar(mouth_points)
@@ -560,7 +588,7 @@ def generate_frames():
                         )
                         if mar is not None:
                             mouth_status = "YAWNING" if result["mouth_breaching"] else (
-                                "MOUTH OPEN" if mar > MAR_THRESHOLD else "NORMAL")
+                                "MOUTH OPEN" if mar > detector.mar_threshold else "NORMAL")
                         if result["alert_type"] is not None:
                             send_alert = True
                             alert_type = result["alert_type"]
@@ -722,6 +750,7 @@ def start_camera():
         })
 
     refresh_known_face_drivers()
+    apply_alert_settings_to_detector()
     face_recognition_frame_counter = 0
     pending_recognition_key = None
     pending_recognition_count = 0
@@ -807,6 +836,7 @@ def capture_image():
 
 
 @app.route("/drivers/<driver_id>/enroll_face_from_camera", methods=["POST"])
+@login_required
 def enroll_face_from_camera(driver_id):
     global last_original_camera_frame
 
@@ -836,12 +866,6 @@ def enroll_face_from_camera(driver_id):
         "message": message,
         "known_faces": len(known_face_drivers),
     }), 200 if ok else 400
-
-
-@app.route("/register")
-@app.route("/register.html")
-def register():
-    return render_template("register.html")
 
 
 @app.route("/dashboard")
@@ -936,26 +960,99 @@ def export_alerts():
     )
 
 
+@app.route("/export-drivers")
+@login_required
+def export_drivers():
+    drivers_list = get_all_drivers()
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "driver_code",
+        "full_name",
+        "phone",
+        "email",
+        "license_number",
+        "status",
+    ])
+
+    for d in drivers_list or []:
+        writer.writerow([
+            d.get("driver_code") or "",
+            d.get("full_name") or "",
+            d.get("phone") or "",
+            d.get("email") or "",
+            d.get("license_number") or "",
+            d.get("status") or "",
+        ])
+
+    filename = datetime.now().strftime("drivers_%Y%m%d_%H%M%S.csv")
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+
 @app.route("/stats")
 @app.route("/stats.html")
 @login_required
 def stats():
-    alert_stats = get_alert_statistics()
-    return render_template("stats.html", stats=alert_stats, alert_stats=alert_stats)
+    days = request.args.get("days", default=7, type=int)
+    if days not in (7, 30):
+        days = 7
+    alert_stats = get_alert_statistics(days=days)
+    return render_template("stats.html", stats=alert_stats, alert_stats=alert_stats, days=days)
 
 
-@app.route("/settings")
-@app.route("/settings.html")
+@app.route("/stats-data")
+@login_required
+def stats_data():
+    days = request.args.get("days", default=7, type=int)
+    if days not in (7, 30):
+        days = 7
+    return jsonify(get_alert_statistics(days=days))
+
+
+@app.route("/settings", methods=["GET", "POST"])
+@app.route("/settings.html", methods=["GET", "POST"])
 @login_required
 def settings():
-    return render_template("settings.html")
+    if request.method == "POST":
+        settings_data = clean_settings_form_data(request.form)
+        ok, msg = update_alert_settings(settings_data)
+        if ok:
+            apply_alert_settings_to_detector()  # có hiệu lực ngay, không cần restart camera
+
+        # Đổi mật khẩu (chỉ khi có nhập mật khẩu mới)
+        new_pw = request.form.get("new_password", "").strip()
+        if new_pw:
+            current_pw = request.form.get("current_password", "")
+            confirm_pw = request.form.get("confirm_password", "")
+            if not check_admin_credentials(session.get("user"), current_pw):
+                flash("Mật khẩu hiện tại không đúng", "error")
+            elif new_pw != confirm_pw:
+                flash("Mật khẩu nhập lại không khớp", "error")
+            elif len(new_pw) < 6:
+                flash("Mật khẩu mới tối thiểu 6 ký tự", "error")
+            else:
+                pw_ok, pw_msg = update_admin_password(
+                    session.get("user"), generate_password_hash(new_pw))
+                flash(pw_msg, "success" if pw_ok else "error")
+        else:
+            flash(msg, "success" if ok else "error")
+
+        return redirect(url_for("settings"))
+
+    alert_settings = get_alert_settings()
+    return render_template("settings.html", settings=alert_settings)
 
 
 @app.route("/profile")
 @app.route("/profile.html")
 @login_required
 def profile():
-    return render_template("profile.html")
+    admin = get_admin_by_username(session.get("user")) or {}
+    return render_template("profile.html", admin=admin)
 
 
 @app.route("/add-vehicle", methods=["GET", "POST"])
@@ -1110,6 +1207,44 @@ def remove_driver(driver_id):
     success, message = delete_driver(driver_id)
     flash(message, "success" if success else "error")
     return redirect(url_for("drivers"))
+
+
+@app.route("/vehicles/<vehicle_id>")
+@login_required
+def vehicle_detail(vehicle_id):
+    vehicle = get_vehicle_by_id(vehicle_id)
+    if not vehicle:
+        flash("Không tìm thấy xe", "error")
+        return redirect(url_for("vehicles"))
+    return render_template("vehicle_detail.html", vehicle=vehicle)
+
+
+@app.route("/vehicles/<vehicle_id>/edit", methods=["GET", "POST"])
+@login_required
+def edit_vehicle(vehicle_id):
+    vehicle = get_vehicle_by_id(vehicle_id)
+    if not vehicle:
+        flash("Không tìm thấy xe", "error")
+        return redirect(url_for("vehicles"))
+
+    if request.method == "POST":
+        form_data = clean_vehicle_form_data(request.form)
+        success, message = update_vehicle(vehicle_id, form_data)
+        if success:
+            flash(message, "success")
+            return redirect(url_for("vehicles"))
+        flash(message, "error")
+        return render_template("edit_vehicle.html", vehicle={**vehicle, **form_data})
+
+    return render_template("edit_vehicle.html", vehicle=vehicle)
+
+
+@app.route("/vehicles/<vehicle_id>/delete", methods=["POST"])
+@login_required
+def remove_vehicle(vehicle_id):
+    success, message = delete_vehicle(vehicle_id)
+    flash(message, "success" if success else "error")
+    return redirect(url_for("vehicles"))
 
 
 @app.route("/rebuild_face_encodings", methods=["POST"])

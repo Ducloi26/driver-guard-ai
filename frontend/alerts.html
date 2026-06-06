@@ -32,7 +32,7 @@
             <a href="./alerts.html" class="active">⚠️ Lịch sử cảnh báo</a>
             <a href="./stats.html">📈 Thống kê</a>
             <a href="./settings.html">⚙️ Cài đặt</a>
-            <a href="./login.html">🚪 Đăng xuất</a>
+            <a href="{{ url_for('logout') }}">🚪 Đăng xuất</a>
         </nav>
     </aside>
 
@@ -45,7 +45,6 @@
             </div>
 
             <div class="header-right">
-                <input class="search-box" placeholder="Tìm kiếm...">
                 <div class="user-box">
                     <div class="avatar">A</div>
                     <div>
@@ -68,31 +67,24 @@
             <div class="alert-actions">
 
                 <div class="alert-filters">
-                    <input type="text" placeholder="Tìm tài xế...">
+                    <input type="text" placeholder="Tìm kiếm..." data-filter-search>
 
-                    <select>
-                        <option>Tất cả cảnh báo</option>
-                        <option>Nhắm mắt lâu</option>
-                        <option>Ngáp liên tục</option>
-                        <option>Ngủ gật</option>
+                    <select data-filter-col="2">
+                        <option value="">Tất cả loại</option>
                     </select>
 
-                    <select>
-                        <option>Tất cả mức độ</option>
-                        <option>Cảnh báo</option>
-                        <option>Nguy hiểm</option>
+                    <select data-filter-col="5">
+                        <option value="">Tất cả mức độ</option>
                     </select>
 
-                    <select>
-                        <option>Tất cả trạng thái</option>
-                        <option>Đã gửi quản lý</option>
-                        <option>Chưa gửi</option>
+                    <select data-filter-col="6">
+                        <option value="">Tất cả trạng thái</option>
                     </select>
                 </div>
 
-                <button class="btn-main" style="width:auto;padding:12px 18px;">
+                <a href="{{ url_for('export_alerts') }}" class="btn-main" style="width:auto;padding:12px 18px;text-decoration:none;display:inline-flex;align-items:center;">
                     Xuất báo cáo
-                </button>
+                </a>
 
             </div>
 
@@ -201,7 +193,7 @@
             </button>
 
             <a
-                href="./login.html"
+                href="{{ url_for('logout') }}"
                 class="btn-logout"
             >
                 Đăng xuất
@@ -212,7 +204,19 @@
 
 </div>
 
+<div id="alertDetailModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:12px;padding:24px;max-width:480px;width:90%;">
+    <h2 style="margin:0 0 16px;">Chi tiết cảnh báo</h2>
+    <div class="info-list" id="alertDetailBody"></div>
+    <div style="text-align:right;margin-top:16px;">
+      <button type="button" class="btn-outline" onclick="closeAlertModal()">Đóng</button>
+    </div>
+  </div>
+</div>
+
 <script src="./static/js/logout.js"></script>
+<script src="./static/js/table-filter.js"></script>
+<script src="./static/js/alerts.js"></script>
 
 </body>
 </html>

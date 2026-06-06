@@ -32,7 +32,7 @@
             <a href="./alerts.html">⚠️ Lịch sử cảnh báo</a>
             <a href="./stats.html">📈 Thống kê</a>
             <a href="./settings.html">⚙️ Cài đặt</a>
-            <a href="./login.html">🚪 Đăng xuất</a>
+            <a href="{{ url_for('logout') }}">🚪 Đăng xuất</a>
         </nav>
     </aside>
 
@@ -45,7 +45,6 @@
             </div>
 
             <div class="header-right">
-                <input class="search-box" placeholder="Tìm kiếm...">
                 <div class="user-box">
                     <div class="avatar">A</div>
                     <div>
@@ -111,7 +110,7 @@
                 </div>
 
                 <div class="action-group">
-                    <button class="btn-outline">Xuất Excel</button>
+                    <a href="{{ url_for('export_drivers') }}" class="btn-outline">Xuất CSV</a>
                     <a href="{{ url_for('add_driver') }}" class="btn-main" style="width:auto;padding:11px 18px;">+ Thêm tài xế</a>
                 </div>
             </div>
@@ -196,7 +195,7 @@
         <div class="logout-actions">
             <button class="btn-logout-cancel" onclick="closeLogoutModal()">Hủy</button>
 
-            <a href="./login.html" class="btn-logout">Đăng xuất</a>
+            <a href="{{ url_for('logout') }}" class="btn-logout">Đăng xuất</a>
         </div>
     </div>
 </div>

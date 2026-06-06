@@ -123,12 +123,18 @@ create table if not exists alert_settings (
     id uuid primary key default gen_random_uuid(),
     company_id uuid unique references companies(id) on delete cascade,
 
-    ear_threshold numeric(5, 3) not null default 0.250,
-    mar_threshold numeric(5, 3) not null default 0.600,
+    ear_threshold numeric(5, 3) not null default 0.220,
+    mar_threshold numeric(5, 3) not null default 0.300,
     head_down_seconds int not null default 2,
     yawn_seconds int not null default 2,
     alert_window_minutes int not null default 5,
     max_alert_count int not null default 3,
+
+    -- Luồng escalation NHANH cho mức cao (GĐ2):
+    -- đủ high_fast_count sự kiện high trong high_fast_window_seconds → gửi ngay.
+    high_fast_window_seconds int not null default 60,
+    high_fast_count int not null default 2,
+    high_escalation_cooldown_seconds int not null default 120,
 
     telegram_chat_id text,
     manager_email text,

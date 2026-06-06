@@ -30,7 +30,7 @@
           <a href="./alerts.html">⚠️ Lịch sử cảnh báo</a>
           <a href="./stats.html">📈 Thống kê</a>
           <a href="./settings.html" class="active">⚙️ Cài đặt</a>
-          <a href="./login.html">🚪 Đăng xuất</a>
+          <a href="{{ url_for('logout') }}">🚪 Đăng xuất</a>
         </nav>
       </aside>
 
@@ -44,7 +44,6 @@
           </div>
 
           <div class="header-right">
-            <input class="search-box" placeholder="Tìm kiếm..." />
             <div class="user-box">
               <div class="avatar">A</div>
               <div>
@@ -56,7 +55,14 @@
         </header>
 
         <section class="content">
-          <div class="settings-layout">
+          {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+              {% for category, message in messages %}
+                <div class="flash flash-{{ category }}" style="margin-bottom:16px;padding:12px 16px;border-radius:8px;{% if category == 'success' %}background:#e8f7ee;color:#1e7e44;{% else %}background:#fdecec;color:#c0392b;{% endif %}">{{ message }}</div>
+              {% endfor %}
+            {% endif %}
+          {% endwith %}
+          <form method="POST" action="{{ url_for('settings') }}" class="settings-layout">
             <div class="settings-card">
               <h2>Cài đặt AI phát hiện buồn ngủ</h2>
               <p>
@@ -66,37 +72,60 @@
               <div class="setting-row">
                 <div class="setting-group">
                   <label>Ngưỡng EAR</label>
-                  <input type="number" value="0.25" step="0.01" />
+                  <input type="number" name="ear_threshold" value="{{ settings.ear_threshold }}" step="0.01" />
                 </div>
 
                 <div class="setting-group">
                   <label>Ngưỡng MAR</label>
-                  <input type="number" value="0.60" step="0.01" />
+                  <input type="number" name="mar_threshold" value="{{ settings.mar_threshold }}" step="0.01" />
                 </div>
               </div>
 
               <div class="setting-row">
                 <div class="setting-group">
-                  <label>Thời gian nhắm mắt cảnh báo</label>
-                  <input type="text" value="2 giây" />
+                  <label>Thời gian cúi đầu cảnh báo (giây)</label>
+                  <input type="number" name="head_down_seconds" value="{{ settings.head_down_seconds }}" step="1" min="1" />
                 </div>
 
                 <div class="setting-group">
-                  <label>Thời gian ngáp cảnh báo</label>
-                  <input type="text" value="1.5 giây" />
+                  <label>Thời gian ngáp cảnh báo (giây)</label>
+                  <input type="number" name="yawn_seconds" value="{{ settings.yawn_seconds }}" step="1" min="1" />
                 </div>
               </div>
 
               <div class="setting-row">
                 <div class="setting-group">
                   <label>Số lần cảnh báo để gửi quản lý</label>
-                  <input type="number" value="3" />
+                  <input type="number" name="max_alert_count" value="{{ settings.max_alert_count }}" step="1" min="1" />
                 </div>
 
                 <div class="setting-group">
-                  <label>Khoảng thời gian kiểm tra</label>
-                  <input type="text" value="5 phút" />
+                  <label>Khoảng thời gian kiểm tra (phút)</label>
+                  <input type="number" name="alert_window_minutes" value="{{ settings.alert_window_minutes }}" step="1" min="1" />
                 </div>
+              </div>
+
+              <h3 style="margin-top:24px;">Cảnh báo nhanh mức cao</h3>
+              <p>Khi tài xế ở mức nguy hiểm cao: đủ số lần xác nhận trong cửa sổ ngắn là gửi ngay cho quản lý.</p>
+
+              <div class="setting-row">
+                <div class="setting-group">
+                  <label>Cửa sổ xác nhận nhanh (giây)</label>
+                  <input type="number" name="high_fast_window_seconds" value="{{ settings.high_fast_window_seconds }}" step="1" min="5" />
+                </div>
+
+                <div class="setting-group">
+                  <label>Số lần high để gửi ngay</label>
+                  <input type="number" name="high_fast_count" value="{{ settings.high_fast_count }}" step="1" min="1" />
+                </div>
+              </div>
+
+              <div class="setting-row">
+                <div class="setting-group">
+                  <label>Nghỉ giữa 2 lần gửi - mức cao (giây)</label>
+                  <input type="number" name="high_escalation_cooldown_seconds" value="{{ settings.high_escalation_cooldown_seconds }}" step="1" min="0" />
+                </div>
+                <div class="setting-group"></div>
               </div>
 
               <div class="warning-note">
@@ -136,12 +165,12 @@
 
               <div class="setting-group">
                 <label>Telegram Chat ID</label>
-                <input type="text" value="-100123456789" />
+                <input type="text" name="telegram_chat_id" value="{{ settings.telegram_chat_id or '' }}" placeholder="-100123456789" />
               </div>
 
               <div class="setting-group">
                 <label>Email nhận cảnh báo</label>
-                <input type="email" value="manager@driverguard.vn" />
+                <input type="email" name="manager_email" value="{{ settings.manager_email or '' }}" placeholder="manager@congty.vn" />
               </div>
 
               <div class="api-box">
@@ -213,17 +242,23 @@
                 <input type="text" value="0900000000" />
               </div>
 
+              <div class="setting-group">
+                <label>Mật khẩu hiện tại</label>
+                <input type="password" name="current_password" placeholder="••••••••" autocomplete="current-password" />
+              </div>
+
               <div class="setting-row">
                 <div class="setting-group">
                   <label>Mật khẩu mới</label>
-                  <input type="password" placeholder="••••••••" />
+                  <input type="password" name="new_password" placeholder="••••••••" autocomplete="new-password" />
                 </div>
 
                 <div class="setting-group">
                   <label>Nhập lại mật khẩu</label>
-                  <input type="password" placeholder="••••••••" />
+                  <input type="password" name="confirm_password" placeholder="••••••••" autocomplete="new-password" />
                 </div>
               </div>
+              <p style="font-size:13px;color:#888;margin-top:4px;">Để trống nếu không đổi mật khẩu.</p>
 
               <div class="toggle-row">
                 <div>
@@ -237,12 +272,10 @@
             </div>
 
             <div class="settings-actions">
-              <button class="btn-cancel" type="button">Hủy thay đổi</button>
-              <a href="./dashboard.html" class="btn-main btn-save"
-                >Lưu cài đặt</a
-              >
+              <button class="btn-cancel" type="button" onclick="location.reload()">Hủy thay đổi</button>
+              <button type="submit" class="btn-main btn-save">Lưu cài đặt</button>
             </div>
-          </div>
+          </form>
         </section>
       </main>
     </div>
@@ -260,7 +293,7 @@
             Hủy
           </button>
 
-          <a href="./login.html" class="btn-logout"> Đăng xuất </a>
+          <a href="{{ url_for('logout') }}" class="btn-logout"> Đăng xuất </a>
         </div>
       </div>
     </div>

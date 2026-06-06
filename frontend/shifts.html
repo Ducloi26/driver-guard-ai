@@ -32,7 +32,7 @@
             <a href="./alerts.html">⚠️ Lịch sử cảnh báo</a>
             <a href="./stats.html">📈 Thống kê</a>
             <a href="./settings.html">⚙️ Cài đặt</a>
-            <a href="./login.html">🚪 Đăng xuất</a>
+            <a href="{{ url_for('logout') }}">🚪 Đăng xuất</a>
         </nav>
     </aside>
 
@@ -45,7 +45,6 @@
             </div>
 
             <div class="header-right">
-                <input class="search-box" placeholder="Tìm kiếm...">
                 <div class="user-box">
                     <div class="avatar">A</div>
                     <div>
@@ -82,21 +81,7 @@
 
             <div class="shift-actions">
                 <div class="shift-filters">
-                    <input type="text" placeholder="Tìm tài xế hoặc biển số...">
-
-                    <select>
-                        <option>Tất cả ca</option>
-                        <option>Ca sáng</option>
-                        <option>Ca chiều</option>
-                        <option>Ca đêm</option>
-                    </select>
-
-                    <select>
-                        <option>Tất cả trạng thái</option>
-                        <option>Đang hoạt động</option>
-                        <option>Sắp bắt đầu</option>
-                        <option>Đã kết thúc</option>
-                    </select>
+                    <input type="text" placeholder="Tìm kiếm..." data-filter-search>
                 </div>
 
                 <div>
@@ -108,7 +93,7 @@
                 {% for shift in shifts or [] %}
                 {% set driver = shift.drivers %}
                 {% set vehicle = shift.vehicles %}
-                <div class="shift-box {% if shift.status == 'scheduled' %}warning{% elif shift.status in ['cancelled', 'inactive'] %}danger{% endif %}">
+                <div class="shift-box {% if shift.status == 'scheduled' %}warning{% elif shift.status in ['cancelled', 'inactive'] %}danger{% endif %}" data-filter-item>
                     <div class="shift-top">
                         <div>
                             <div class="shift-title">{{ shift.shift_name or 'Ca làm việc' }}</div>
@@ -172,7 +157,7 @@
             </button>
 
             <a
-                href="./login.html"
+                href="{{ url_for('logout') }}"
                 class="btn-logout"
             >
                 Đăng xuất
@@ -185,6 +170,7 @@
 </div>
 
 <script src="./static/js/logout.js"></script>
+<script src="./static/js/table-filter.js"></script>
 
 </body>
 </html>

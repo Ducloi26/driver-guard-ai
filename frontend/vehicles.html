@@ -32,7 +32,7 @@
             <a href="./alerts.html">⚠️ Lịch sử cảnh báo</a>
             <a href="./stats.html">📈 Thống kê</a>
             <a href="./settings.html">⚙️ Cài đặt</a>
-            <a href="./login.html">🚪 Đăng xuất</a>
+            <a href="{{ url_for('logout') }}">🚪 Đăng xuất</a>
         </nav>
     </aside>
 
@@ -45,7 +45,6 @@
             </div>
 
             <div class="header-right">
-                <input class="search-box" placeholder="Tìm kiếm...">
                 <div class="user-box">
                     <div class="avatar">A</div>
                     <div>
@@ -82,21 +81,14 @@
 
             <div class="vehicle-actions">
                 <div class="vehicle-filters">
-                    <input type="text" placeholder="Tìm biển số xe...">
+                    <input type="text" placeholder="Tìm kiếm..." data-filter-search>
 
-                    <select>
-                        <option>Tất cả loại xe</option>
-                        <option>Xe tải</option>
-                        <option>Xe khách</option>
-                        <option>Xe container</option>
-                        <option>Xe dịch vụ</option>
+                    <select data-filter-col="1">
+                        <option value="">Tất cả loại xe</option>
                     </select>
 
-                    <select>
-                        <option>Tất cả trạng thái</option>
-                        <option>Đang hoạt động</option>
-                        <option>Bảo trì</option>
-                        <option>Ngưng sử dụng</option>
+                    <select data-filter-col="5">
+                        <option value="">Tất cả trạng thái</option>
                     </select>
                 </div>
 
@@ -147,9 +139,12 @@
                             </td>
                             <td>{{ vehicle.note or '--' }}</td>
                             <td>
-                                <button class="btn-small btn-view" type="button">Xem</button>
-                                <button class="btn-small btn-edit" type="button">Sửa</button>
-                                <button class="btn-small btn-delete" type="button">Xóa</button>
+                                <a class="btn-small btn-view" href="{{ url_for('vehicle_detail', vehicle_id=vehicle.id) }}">Xem</a>
+                                <a class="btn-small btn-edit" href="{{ url_for('edit_vehicle', vehicle_id=vehicle.id) }}">Sửa</a>
+                                <form method="POST" action="{{ url_for('remove_vehicle', vehicle_id=vehicle.id) }}"
+                                      onsubmit="return confirm('Xóa xe {{ vehicle.plate_number }}?');" style="display:inline;">
+                                    <button class="btn-small btn-delete" type="submit">Xóa</button>
+                                </form>
                             </td>
                         </tr>
                         {% else %}
@@ -189,7 +184,7 @@
             </button>
 
             <a
-                href="./login.html"
+                href="{{ url_for('logout') }}"
                 class="btn-logout"
             >
                 Đăng xuất
@@ -202,6 +197,7 @@
 </div>
 
 <script src="./static/js/logout.js"></script>
+<script src="./static/js/table-filter.js"></script>
 
 </body>
 </html>

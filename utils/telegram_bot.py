@@ -32,10 +32,16 @@ ALERT_TYPE_LABELS = {
 }
 
 
-def _check_config() -> bool:
-    """Kiểm tra đã cấu hình token và chat_id trong .env chưa."""
-    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
-        logger.error("Thiếu TELEGRAM_BOT_TOKEN hoặc TELEGRAM_CHAT_ID trong .env")
+def _check_config(chat_id: str = None) -> bool:
+    """
+    Kiểm tra đã đủ cấu hình để gửi chưa.
+
+    Token LUÔN lấy từ .env (bí mật, không đưa lên DB/UI). Người nhận (chat_id)
+    có thể truyền vào từ alert_settings; nếu không thì fallback về .env.
+    """
+    effective_chat_id = chat_id or TELEGRAM_CHAT_ID
+    if not TELEGRAM_BOT_TOKEN or not effective_chat_id:
+        logger.error("Thiếu TELEGRAM_BOT_TOKEN (.env) hoặc Chat ID (cài đặt/.env)")
         return False
     return True
 
@@ -92,24 +98,25 @@ def format_alert_message(
     return "\n".join(lines)
 
 
-def send_text_alert(message: str) -> bool:
+def send_text_alert(message: str, chat_id: str = None) -> bool:
     """
     Gửi tin nhắn text qua Telegram.
 
     Args:
         message: nội dung tin nhắn
+        chat_id: người nhận (từ alert_settings); None → lấy từ .env
 
     Returns:
         True nếu gửi thành công, False nếu lỗi
     """
-    if not _check_config():
+    if not _check_config(chat_id):
         return False
 
     try:
         response = requests.post(
             f"{BASE_URL}/sendMessage",
             json={
-                "chat_id": TELEGRAM_CHAT_ID,
+                "chat_id": chat_id or TELEGRAM_CHAT_ID,
                 "text": message,
             },
             timeout=10,
@@ -127,18 +134,19 @@ def send_text_alert(message: str) -> bool:
         return False
 
 
-def send_photo_alert(image_path: str, caption: str = None) -> bool:
+def send_photo_alert(image_path: str, caption: str = None, chat_id: str = None) -> bool:
     """
     Gửi ảnh minh chứng kèm caption qua Telegram.
 
     Args:
         image_path: đường dẫn file ảnh (vd: static/captures/abc.jpg)
         caption: mô tả đi kèm ảnh (optional, tối đa 1024 ký tự)
+        chat_id: người nhận (từ alert_settings); None → lấy từ .env
 
     Returns:
         True nếu gửi thành công, False nếu lỗi
     """
-    if not _check_config():
+    if not _check_config(chat_id):
         return False
 
     if not os.path.exists(image_path):
@@ -147,7 +155,7 @@ def send_photo_alert(image_path: str, caption: str = None) -> bool:
 
     try:
         with open(image_path, "rb") as photo:
-            data = {"chat_id": TELEGRAM_CHAT_ID}
+            data = {"chat_id": chat_id or TELEGRAM_CHAT_ID}
             if caption:
                 data["caption"] = caption[:1024]
 

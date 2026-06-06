@@ -30,7 +30,7 @@
           <a href="./alerts.html">⚠️ Lịch sử cảnh báo</a>
           <a href="./stats.html" class="active">📈 Thống kê</a>
           <a href="./settings.html">⚙️ Cài đặt</a>
-          <a href="./login.html">🚪 Đăng xuất</a>
+          <a href="{{ url_for('logout') }}">🚪 Đăng xuất</a>
         </nav>
       </aside>
 
@@ -45,7 +45,6 @@
           </div>
 
           <div class="header-right">
-            <input class="search-box" placeholder="Tìm kiếm..." />
             <div class="user-box">
               <div class="avatar">A</div>
               <div>
@@ -59,48 +58,31 @@
         <section class="content">
           <div class="stats-summary">
             <div class="stats-card">
-              <h3>{{ stats.total }}</h3>
+              <h3 id="statTotal">{{ stats.total }}</h3>
               <p>Tổng cảnh báo</p>
             </div>
 
             <div class="stats-card danger">
-              <h3>{{ stats.high_count }}</h3>
+              <h3 id="statHigh">{{ stats.high_count }}</h3>
               <p>Cảnh báo nguy hiểm (mức cao)</p>
             </div>
 
             <div class="stats-card warning">
-              <h3>{{ stats.by_type.DROWSY }}</h3>
+              <h3 id="statDrowsy">{{ stats.by_type.DROWSY }}</h3>
               <p>Buồn ngủ (DROWSY)</p>
             </div>
 
             <div class="stats-card success">
-              <h3>{{ stats.by_type.YAWNING }}</h3>
+              <h3 id="statYawn">{{ stats.by_type.YAWNING }}</h3>
               <p>Ngáp (YAWNING)</p>
             </div>
           </div>
 
           <div class="stats-actions">
             <div class="stats-filters">
-              <select>
-                <option>30 ngày qua</option>
-                <option>7 ngày qua</option>
-                <option>Tháng này</option>
-                <option>Năm nay</option>
-              </select>
-
-              <select>
-                <option>Tất cả tài xế</option>
-                <option>Nguyễn Văn A</option>
-                <option>Trần Văn B</option>
-                <option>Phạm Minh D</option>
-              </select>
-
-              <select>
-                <option>Tất cả loại cảnh báo</option>
-                <option>Nhắm mắt lâu</option>
-                <option>Ngáp liên tục</option>
-                <option>Gục đầu</option>
-                <option>Ngủ gật</option>
+              <select onchange="location.href='?days=' + this.value">
+                <option value="7" {% if days == 7 %}selected{% endif %}>7 ngày qua</option>
+                <option value="30" {% if days == 30 %}selected{% endif %}>30 ngày qua</option>
               </select>
             </div>
 
@@ -113,7 +95,7 @@
             <div class="card">
               <div class="card-title">Biểu đồ cảnh báo theo ngày</div>
 
-              <div class="chart-large">
+              <div class="chart-large" id="chartByDay">
                 {% for d in stats.by_day %}
                 <div class="chart-column">
                   <div
@@ -133,7 +115,7 @@
               <div class="donut-wrap">
                 <div class="donut">
                   <div class="donut-center">
-                    <strong>{{ stats.total }}</strong>
+                    <strong id="donutTotal">{{ stats.total }}</strong>
                     <span>Cảnh báo</span>
                   </div>
                 </div>
@@ -144,7 +126,7 @@
                       <div class="legend-dot dot-red"></div>
                       <span>Nhắm mắt (EYES_CLOSED)</span>
                     </div>
-                    <strong>{{ stats.by_type.EYES_CLOSED }}</strong>
+                    <strong id="legendEyes">{{ stats.by_type.EYES_CLOSED }}</strong>
                   </div>
 
                   <div class="legend-item">
@@ -152,7 +134,7 @@
                       <div class="legend-dot dot-orange"></div>
                       <span>Ngáp (YAWNING)</span>
                     </div>
-                    <strong>{{ stats.by_type.YAWNING }}</strong>
+                    <strong id="legendYawn">{{ stats.by_type.YAWNING }}</strong>
                   </div>
 
                   <div class="legend-item">
@@ -160,7 +142,7 @@
                       <div class="legend-dot dot-blue"></div>
                       <span>Cúi đầu (HEAD_DOWN)</span>
                     </div>
-                    <strong>{{ stats.by_type.HEAD_DOWN }}</strong>
+                    <strong id="legendHead">{{ stats.by_type.HEAD_DOWN }}</strong>
                   </div>
 
                   <div class="legend-item">
@@ -168,7 +150,7 @@
                       <div class="legend-dot dot-purple"></div>
                       <span>Buồn ngủ (DROWSY)</span>
                     </div>
-                    <strong>{{ stats.by_type.DROWSY }}</strong>
+                    <strong id="legendDrowsy">{{ stats.by_type.DROWSY }}</strong>
                   </div>
                 </div>
               </div>
@@ -198,82 +180,8 @@
               </div>
             </div>
 
-            <div class="card">
-              <div class="card-title">Heatmap cảnh báo theo tuần</div>
-
-              <div class="heatmap">
-                <div class="heat-cell">T2</div>
-                <div class="heat-cell">T3</div>
-                <div class="heat-cell">T4</div>
-                <div class="heat-cell">T5</div>
-                <div class="heat-cell">T6</div>
-                <div class="heat-cell">T7</div>
-                <div class="heat-cell">CN</div>
-
-                <div class="heat-cell heat-low">3</div>
-                <div class="heat-cell heat-mid">8</div>
-                <div class="heat-cell heat-low">4</div>
-                <div class="heat-cell heat-high">15</div>
-                <div class="heat-cell heat-mid">9</div>
-                <div class="heat-cell heat-high">18</div>
-                <div class="heat-cell heat-low">5</div>
-
-                <div class="heat-cell heat-mid">7</div>
-                <div class="heat-cell heat-high">13</div>
-                <div class="heat-cell heat-mid">10</div>
-                <div class="heat-cell heat-high">21</div>
-                <div class="heat-cell heat-mid">11</div>
-                <div class="heat-cell heat-high">25</div>
-                <div class="heat-cell heat-mid">8</div>
-              </div>
-            </div>
           </div>
 
-          <div class="card">
-            <div class="card-title">Bảng thống kê theo ca làm việc</div>
-
-            <table class="table">
-              <thead>
-                <tr>
-                  <th>Ca làm việc</th>
-                  <th>Số tài xế</th>
-                  <th>Tổng cảnh báo</th>
-                  <th>Nguy hiểm</th>
-                  <th>Tỷ lệ xử lý</th>
-                  <th>Đánh giá</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                <tr>
-                  <td>Ca sáng</td>
-                  <td>8</td>
-                  <td>142</td>
-                  <td>12</td>
-                  <td>91%</td>
-                  <td><span class="badge badge-success">Ổn định</span></td>
-                </tr>
-
-                <tr>
-                  <td>Ca chiều</td>
-                  <td>7</td>
-                  <td>176</td>
-                  <td>18</td>
-                  <td>86%</td>
-                  <td><span class="badge badge-warning">Cần theo dõi</span></td>
-                </tr>
-
-                <tr>
-                  <td>Ca đêm</td>
-                  <td>5</td>
-                  <td>169</td>
-                  <td>26</td>
-                  <td>79%</td>
-                  <td><span class="badge badge-danger">Nguy cơ cao</span></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
         </section>
       </main>
     </div>
@@ -291,11 +199,12 @@
             Hủy
           </button>
 
-          <a href="./login.html" class="btn-logout"> Đăng xuất </a>
+          <a href="{{ url_for('logout') }}" class="btn-logout"> Đăng xuất </a>
         </div>
       </div>
     </div>
 
     <script src="./static/js/logout.js"></script>
+    <script src="./static/js/stats.js"></script>
   </body>
 </html>

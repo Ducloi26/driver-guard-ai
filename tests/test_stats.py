@@ -107,5 +107,56 @@ class ExportAlertsRouteTests(unittest.TestCase):
         self.assertIn("Tài xế A", body)
 
 
+class ExportDriversRouteTests(unittest.TestCase):
+    def setUp(self):
+        self.client = webapp.app.test_client()
+
+    def _login(self):
+        with self.client.session_transaction() as sess:
+            sess["user"] = "admin"
+
+    def test_export_requires_login(self):
+        self.assertEqual(self.client.get("/export-drivers").status_code, 302)
+
+    def test_export_returns_csv(self):
+        self._login()
+        fake = [{
+            "driver_code": "TX01", "full_name": "Tài xế A",
+            "phone": "0900000000", "email": "a@x.vn",
+            "license_number": "L1", "status": "active",
+        }]
+        with patch.object(webapp, "get_all_drivers", return_value=fake):
+            resp = self.client.get("/export-drivers")
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("text/csv", resp.headers["Content-Type"])
+        self.assertIn("attachment", resp.headers["Content-Disposition"])
+        body = resp.data.decode("utf-8")
+        self.assertIn("Tài xế A", body)
+        self.assertIn("TX01", body)
+
+
+class StatsDataRouteTests(unittest.TestCase):
+    def setUp(self):
+        self.client = webapp.app.test_client()
+
+    def test_requires_login(self):
+        self.assertEqual(self.client.get("/stats-data").status_code, 302)
+
+    def test_returns_json(self):
+        with self.client.session_transaction() as sess:
+            sess["user"] = "admin"
+        fake = {
+            "total": 3, "high_count": 1,
+            "by_type": {"DROWSY": 1, "EYES_CLOSED": 1, "YAWNING": 0, "HEAD_DOWN": 1},
+            "by_day": [{"label": "05/06", "count": 3, "pct": 100}],
+            "top_drivers": [],
+        }
+        with patch.object(webapp, "get_alert_statistics", return_value=fake):
+            resp = self.client.get("/stats-data?days=7")
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("application/json", resp.headers["Content-Type"])
+        self.assertEqual(resp.get_json()["total"], 3)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -31,7 +31,7 @@
             <a href="./alerts.html">⚠️ Lịch sử cảnh báo</a>
             <a href="./stats.html">📈 Thống kê</a>
             <a href="./settings.html">⚙️ Cài đặt</a>
-            <a href="./login.html">🚪 Đăng xuất</a>
+            <a href="{{ url_for('logout') }}">🚪 Đăng xuất</a>
         </nav>
     </aside>
 
@@ -44,7 +44,6 @@
             </div>
 
             <div class="header-right">
-                <input class="search-box" placeholder="Tìm kiếm...">
                 <div class="user-box">
                     <div class="avatar">A</div>
                     <div>

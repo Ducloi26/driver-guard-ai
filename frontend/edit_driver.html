@@ -32,7 +32,7 @@
             <a href="{{ url_for('alerts') }}">⚠️ Lịch sử cảnh báo</a>
             <a href="{{ url_for('stats') }}">📈 Thống kê</a>
             <a href="{{ url_for('settings') }}">⚙️ Cài đặt</a>
-            <a href="./login.html">🚪 Đăng xuất</a>
+            <a href="{{ url_for('logout') }}">🚪 Đăng xuất</a>
         </nav>
     </aside>
 
@@ -45,7 +45,6 @@
             </div>
 
             <div class="header-right">
-                <input class="search-box" placeholder="Tìm kiếm...">
                 <div class="user-box">
                     <div class="avatar">A</div>
                     <div>
@@ -148,7 +147,7 @@
             </button>
 
             <a
-                href="./login.html"
+                href="{{ url_for('logout') }}"
                 class="btn-logout"
             >
                 Đăng xuất

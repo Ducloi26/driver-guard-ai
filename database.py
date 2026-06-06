@@ -154,6 +154,25 @@ def create_admin(username: str, password_hash: str, full_name: str,
         return False, str(e)
 
 
+def update_admin_password(username: str, password_hash: str) -> tuple[bool, str]:
+    """Đổi mật khẩu (password_hash) cho tài khoản admin trong profiles."""
+    try:
+        supabase = get_supabase_client()
+        response = (
+            supabase
+            .table("profiles")
+            .update({"password_hash": password_hash})
+            .eq("username", username)
+            .execute()
+        )
+        if response.data:
+            return True, "Đổi mật khẩu thành công"
+        return False, "Không tìm thấy tài khoản để đổi mật khẩu"
+    except Exception as e:
+        logger.error(f"update_admin_password({username}) lỗi: {e}")
+        return False, "Lỗi hệ thống khi đổi mật khẩu"
+
+
 def clean_form_data(form) -> dict:
     """
     Làm sạch dữ liệu từ HTML form trước khi insert vào DB.
@@ -1026,6 +1045,87 @@ def add_vehicle(vehicle_data: dict) -> tuple[bool, str]:
         return False, "Lỗi hệ thống khi thêm xe"
 
 
+def get_vehicle_by_id(vehicle_id: str) -> dict | None:
+    """Lấy 1 xe theo ID (lọc theo company_id để an toàn đa công ty)."""
+    try:
+        supabase = get_supabase_client()
+        company_id = get_default_company_id()
+        response = (
+            supabase
+            .table("vehicles")
+            .select("*")
+            .eq("id", vehicle_id)
+            .eq("company_id", company_id)
+            .limit(1)
+            .execute()
+        )
+        if response.data:
+            return response.data[0]
+        return None
+    except Exception as e:
+        logger.error(f"get_vehicle_by_id({vehicle_id}) lỗi: {e}")
+        return None
+
+
+def update_vehicle(vehicle_id: str, vehicle_data: dict) -> tuple[bool, str]:
+    """Cập nhật thông tin xe. Chỉ cho sửa các field an toàn."""
+    if not vehicle_data.get("plate_number"):
+        return False, "Biển số xe không được để trống"
+
+    try:
+        supabase = get_supabase_client()
+        company_id = get_default_company_id()
+
+        allowed_fields = ["plate_number", "vehicle_type", "brand", "status"]
+        safe_data = {k: v for k, v in vehicle_data.items() if k in allowed_fields}
+
+        valid_statuses = ("active", "maintenance", "inactive")
+        if safe_data.get("status") not in valid_statuses:
+            safe_data["status"] = "active"
+
+        response = (
+            supabase
+            .table("vehicles")
+            .update(safe_data)
+            .eq("id", vehicle_id)
+            .eq("company_id", company_id)
+            .execute()
+        )
+        if response.data:
+            return True, "Cập nhật xe thành công"
+        return False, "Không tìm thấy xe để cập nhật"
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"update_vehicle({vehicle_id}) lỗi: {error_msg}")
+        if "unique" in error_msg.lower() or "duplicate" in error_msg.lower():
+            return False, "Biển số xe đã tồn tại trong hệ thống"
+        return False, "Lỗi hệ thống khi cập nhật xe"
+
+
+def delete_vehicle(vehicle_id: str) -> tuple[bool, str]:
+    """
+    Soft delete: đánh dấu xe 'inactive' thay vì xóa thật.
+    alerts/shifts có FK -> vehicles (on delete set null) nên giữ lịch sử.
+    """
+    try:
+        supabase = get_supabase_client()
+        company_id = get_default_company_id()
+        response = (
+            supabase
+            .table("vehicles")
+            .update({"status": "inactive"})
+            .eq("id", vehicle_id)
+            .eq("company_id", company_id)
+            .execute()
+        )
+        if response.data:
+            return True, "Đã xóa xe khỏi hệ thống"
+        return False, "Không tìm thấy xe để xóa"
+    except Exception as e:
+        logger.error(f"delete_vehicle({vehicle_id}) lỗi: {e}")
+        return False, "Lỗi hệ thống khi xóa xe"
+
+
 # ==============================================================
 # PHẦN 2.6: SHIFTS
 # ==============================================================
@@ -1417,6 +1517,188 @@ def count_recent_alerts(driver_id: str, minutes: int = 5) -> int:
     except Exception as e:
         logger.error(f"count_recent_alerts({driver_id}) lỗi: {e}")
         return 0
+
+
+def count_recent_high_alerts(driver_id: str, seconds: int = 60) -> int:
+    """
+    Đếm số cảnh báo MỨC CAO (high) của tài xế trong N GIÂY gần nhất.
+
+    Dùng cho luồng escalation nhanh: khi tài xế đang ở mức nguy hiểm cao,
+    chỉ cần ít sự kiện high trong cửa sổ ngắn (mặc định 60s) là đủ xác nhận
+    để gửi cảnh báo ngay, thay vì chờ đủ ngưỡng tích lũy 5 phút.
+
+    Khác count_recent_alerts: cửa sổ tính bằng GIÂY và chỉ đếm 'high'.
+
+    Args:
+        driver_id (str): UUID tài xế
+        seconds (int): cửa sổ thời gian nhìn lại (mặc định 60 giây)
+
+    Returns:
+        int: số cảnh báo high trong cửa sổ. Trả về 0 nếu lỗi.
+    """
+    try:
+        supabase = get_supabase_client()
+        company_id = get_default_company_id()
+
+        threshold = datetime.now(timezone.utc) - timedelta(seconds=seconds)
+        threshold_str = threshold.isoformat()
+
+        response = (
+            supabase
+            .table("alerts")
+            .select("id, alert_level")
+            .eq("company_id", company_id)
+            .eq("driver_id", driver_id)
+            .gte("alert_time", threshold_str)
+            .execute()
+        )
+
+        if not response.data:
+            return 0
+
+        return len([row for row in response.data if row.get("alert_level") == "high"])
+
+    except Exception as e:
+        logger.error(f"count_recent_high_alerts({driver_id}) lỗi: {e}")
+        return 0
+
+
+# ==============================================================
+# PHẦN 3.5: ALERT SETTINGS (ngưỡng AI + kênh thông báo theo công ty)
+# ==============================================================
+
+# Giá trị mặc định khớp default trong schema.sql (bảng alert_settings).
+# Dùng khi công ty chưa có dòng cấu hình hoặc khi query lỗi.
+ALERT_SETTINGS_DEFAULTS = {
+    "ear_threshold": 0.220,
+    "mar_threshold": 0.300,
+    "head_down_seconds": 2,
+    "yawn_seconds": 2,
+    "alert_window_minutes": 5,
+    "max_alert_count": 3,
+    "telegram_chat_id": None,
+    "manager_email": None,
+    # Tham số luồng escalation NHANH cho mức high (GĐ2 — chỉnh từ UI).
+    "high_fast_window_seconds": 60,
+    "high_fast_count": 2,
+    "high_escalation_cooldown_seconds": 120,
+}
+
+
+def clean_settings_form_data(form) -> dict:
+    """
+    Làm sạch & ép kiểu dữ liệu từ form cài đặt trước khi lưu alert_settings.
+
+    Các cột số trong schema là numeric/int nên phải convert từ chuỗi form.
+    Nếu giá trị sai/để trống thì fallback về default để không lưu rác vào DB.
+    """
+    d = ALERT_SETTINGS_DEFAULTS
+
+    def to_float(value, default):
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return default
+
+    def to_int(value, default):
+        try:
+            return int(float(value))
+        except (TypeError, ValueError):
+            return default
+
+    def to_none_if_empty(value):
+        if value is None:
+            return None
+        stripped = value.strip()
+        return stripped if stripped else None
+
+    return {
+        "ear_threshold": to_float(form.get("ear_threshold"), d["ear_threshold"]),
+        "mar_threshold": to_float(form.get("mar_threshold"), d["mar_threshold"]),
+        "head_down_seconds": to_int(form.get("head_down_seconds"), d["head_down_seconds"]),
+        "yawn_seconds": to_int(form.get("yawn_seconds"), d["yawn_seconds"]),
+        "alert_window_minutes": to_int(form.get("alert_window_minutes"), d["alert_window_minutes"]),
+        "max_alert_count": to_int(form.get("max_alert_count"), d["max_alert_count"]),
+        "telegram_chat_id": to_none_if_empty(form.get("telegram_chat_id")),
+        "manager_email": to_none_if_empty(form.get("manager_email")),
+        "high_fast_window_seconds": to_int(form.get("high_fast_window_seconds"), d["high_fast_window_seconds"]),
+        "high_fast_count": to_int(form.get("high_fast_count"), d["high_fast_count"]),
+        "high_escalation_cooldown_seconds": to_int(form.get("high_escalation_cooldown_seconds"), d["high_escalation_cooldown_seconds"]),
+    }
+
+
+def get_alert_settings(company_id: str | None = None) -> dict:
+    """
+    Lấy cấu hình cảnh báo của công ty. Trả về defaults nếu chưa có/lỗi.
+
+    Không raise để route /settings luôn render được, kể cả khi công ty
+    chưa từng lưu cấu hình (dùng giá trị mặc định trong schema).
+    """
+    if company_id is None:
+        company_id = get_default_company_id()
+
+    legacy_cols = ("ear_threshold, mar_threshold, head_down_seconds, yawn_seconds, "
+                   "alert_window_minutes, max_alert_count, telegram_chat_id, manager_email")
+    full_cols = (legacy_cols +
+                 ", high_fast_window_seconds, high_fast_count, high_escalation_cooldown_seconds")
+
+    # Thử cột đầy đủ trước; nếu công ty chưa chạy migration (thiếu cột mới) thì
+    # lùi về cột cũ để 4A vẫn hoạt động. Luôn merge lên defaults để đủ mọi key.
+    for cols in (full_cols, legacy_cols):
+        try:
+            supabase = get_supabase_client()
+            response = (
+                supabase
+                .table("alert_settings")
+                .select(cols)
+                .eq("company_id", company_id)
+                .limit(1)
+                .execute()
+            )
+            if response.data:
+                return {**ALERT_SETTINGS_DEFAULTS, **response.data[0]}
+            return dict(ALERT_SETTINGS_DEFAULTS)
+        except Exception as e:
+            logger.error(f"get_alert_settings() select lỗi: {e}")
+            continue
+
+    return dict(ALERT_SETTINGS_DEFAULTS)
+
+
+def update_alert_settings(settings_data: dict) -> tuple[bool, str]:
+    """
+    Lưu cấu hình cảnh báo cho công ty (upsert theo company_id).
+
+    company_id là UNIQUE trong alert_settings nên dùng upsert: chưa có thì
+    insert, đã có thì update đúng dòng của công ty.
+    """
+    company_id = get_default_company_id()
+    base_payload = {
+        **settings_data,
+        "company_id": company_id,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    # Cột mới của GĐ2; nếu chưa migration thì bỏ ra để 4A vẫn lưu được.
+    new_keys = ("high_fast_window_seconds", "high_fast_count", "high_escalation_cooldown_seconds")
+    legacy_payload = {k: v for k, v in base_payload.items() if k not in new_keys}
+
+    for payload in (base_payload, legacy_payload):
+        try:
+            supabase = get_supabase_client()
+            response = (
+                supabase
+                .table("alert_settings")
+                .upsert(payload, on_conflict="company_id")
+                .execute()
+            )
+            if response.data:
+                return True, "Đã lưu cài đặt"
+            return False, "Không thể lưu cài đặt, vui lòng thử lại"
+        except Exception as e:
+            logger.error(f"update_alert_settings() lỗi: {e}")
+            continue
+
+    return False, "Lỗi hệ thống khi lưu cài đặt"
 
 
 # ==============================================================

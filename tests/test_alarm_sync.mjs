@@ -4,7 +4,7 @@
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
 
-const src = readFileSync(new URL("../static/js/camera.js", import.meta.url), "utf8");
+const src = readFileSync(new URL("../frontend/static/js/camera.js", import.meta.url), "utf8");
 
 let beeps = 0;
 let cleared = 0;

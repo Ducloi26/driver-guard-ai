@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Chỉnh sửa xe - DriverGuard AI</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/add_vehicle.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/logout.css') }}">
+</head>
+<body>
+
+<div class="app">
+
+    <aside class="sidebar">
+        <div class="logo">
+            <div class="logo-icon">🛡</div>
+            <div>
+                <h2>DriverGuard</h2>
+                <span>AI SAFETY</span>
+            </div>
+        </div>
+
+        <nav class="menu">
+            <a href="{{ url_for('dashboard') }}">📊 Dashboard</a>
+            <a href="{{ url_for('drivers') }}">👥 Tài xế</a>
+            <a href="{{ url_for('vehicles') }}" class="active">🚘 Quản lý xe</a>
+            <a href="{{ url_for('shifts') }}">⏱ Ca làm việc</a>
+            <a href="{{ url_for('camera') }}">📷 Camera AI</a>
+            <a href="{{ url_for('alerts') }}">⚠️ Lịch sử cảnh báo</a>
+            <a href="{{ url_for('stats') }}">📈 Thống kê</a>
+            <a href="{{ url_for('settings') }}">⚙️ Cài đặt</a>
+            <a href="{{ url_for('logout') }}">🚪 Đăng xuất</a>
+        </nav>
+    </aside>
+
+    <main class="main">
+
+        <header class="header">
+            <div>
+                <h1>Chỉnh sửa xe</h1>
+                <p>Cập nhật thông tin phương tiện</p>
+            </div>
+        </header>
+
+        <section class="content">
+
+            <form method="POST" action="{{ url_for('edit_vehicle', vehicle_id=vehicle.id) }}">
+
+                <div class="card form-card">
+                    <h2>Thông tin xe</h2>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Biển số xe</label>
+                            <input type="text" name="plate_number" value="{{ vehicle.plate_number or '' }}" placeholder="51A-123.45" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Loại xe</label>
+                            <input type="text" name="vehicle_type" value="{{ vehicle.vehicle_type or '' }}" placeholder="Xe khách / Xe tải...">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Hãng xe</label>
+                            <input type="text" name="brand" value="{{ vehicle.brand or '' }}" placeholder="Hyundai, Thaco...">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Trạng thái</label>
+                            <select name="status">
+                                <option value="active" {% if vehicle.status == 'active' %}selected{% endif %}>Đang hoạt động</option>
+                                <option value="maintenance" {% if vehicle.status == 'maintenance' %}selected{% endif %}>Bảo trì</option>
+                                <option value="inactive" {% if vehicle.status == 'inactive' %}selected{% endif %}>Ngừng hoạt động</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <a href="{{ url_for('vehicles') }}" class="btn-cancel">Hủy</a>
+                        <button type="submit" class="btn-main btn-save">Lưu thay đổi</button>
+                    </div>
+                </div>
+
+            </form>
+
+        </section>
+
+    </main>
+
+</div>
+
+</body>
+</html>

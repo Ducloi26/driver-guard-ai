@@ -13,7 +13,14 @@ from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 
-from database import add_alert, count_recent_alerts, get_driver_by_id, update_alert_sent_status
+from database import (
+    add_alert,
+    count_recent_alerts,
+    count_recent_high_alerts,
+    get_driver_by_id,
+    update_alert_sent_status,
+    get_alert_settings,
+)
 from utils.logger import setup_logger
 from utils.telegram_bot import format_alert_message, send_text_alert, send_photo_alert
 from utils.email_sender import send_email_alert, send_email_with_image
@@ -30,6 +37,15 @@ ALERT_COOLDOWN_SECONDS = int(os.getenv("ALERT_COOLDOWN_SECONDS", "30"))
 ESCALATION_COOLDOWN_SECONDS = int(os.getenv("ESCALATION_COOLDOWN_SECONDS", "300"))
 ESCALATION_THRESHOLD_COUNT = int(os.getenv("ESCALATION_THRESHOLD_COUNT", "3"))
 ESCALATION_THRESHOLD_MINUTES = int(os.getenv("ESCALATION_THRESHOLD_MINUTES", "5"))
+
+# --- Luồng escalation NHANH cho mức cao (high) ---
+# Khi tài xế đang ở mức nguy hiểm cao, chỉ cần HIGH_FAST_COUNT sự kiện high
+# trong cửa sổ ngắn HIGH_FAST_WINDOW_SECONDS là gửi ngay (không chờ tích lũy 5').
+# Cooldown riêng cho high ngắn hơn để nhắc lại nhanh mà vẫn không spam.
+# GĐ1: hardcode. GĐ2 (gộp 4B) sẽ cho chỉnh window từ trang Cài đặt.
+HIGH_FAST_WINDOW_SECONDS = int(os.getenv("HIGH_FAST_WINDOW_SECONDS", "60"))
+HIGH_FAST_COUNT = int(os.getenv("HIGH_FAST_COUNT", "2"))
+HIGH_ESCALATION_COOLDOWN_SECONDS = int(os.getenv("HIGH_ESCALATION_COOLDOWN_SECONDS", "120"))
 
 # Lưu timestamp lần cuối alert và escalation cho mỗi driver
 # Key: "driver_id_alert_type" → Value: timestamp
@@ -52,11 +68,25 @@ def _mark_alert_saved(driver_id: str, alert_type: str) -> None:
     _last_alert_time[f"{driver_id}_{alert_type}"] = time.time()
 
 
-def _is_escalation_cooldown(driver_id: str) -> bool:
-    """Kiểm tra driver này đang trong thời gian cooldown sau escalation không."""
+def _is_escalation_cooldown(driver_id: str, cooldown_seconds: int = ESCALATION_COOLDOWN_SECONDS) -> bool:
+    """
+    Kiểm tra driver này đang trong cooldown sau escalation không.
+
+    cooldown_seconds khác nhau theo luồng: high dùng 120s (nhắc lại nhanh),
+    luồng thường dùng 300s. Dùng chung một mốc thời gian _last_escalation_time.
+    """
     now = time.time()
     last_time = _last_escalation_time.get(driver_id, 0)
-    return now - last_time < ESCALATION_COOLDOWN_SECONDS
+    return now - last_time < cooldown_seconds
+
+
+def _cfg_int(value, default: int) -> int:
+    """Ép cấu hình về int dương; sai/thiếu → dùng default (hằng số GĐ1)."""
+    try:
+        result = int(value)
+        return result if result > 0 else default
+    except (TypeError, ValueError):
+        return default
 
 
 def _capture_evidence(frame, driver_id: str, alert_type: str) -> str | None:
@@ -81,11 +111,13 @@ def _capture_evidence(frame, driver_id: str, alert_type: str) -> str | None:
 
 def _send_notifications(driver_name: str, alert_type: str, count: int,
                         vehicle: str, ear: float, mar: float, image_path: str,
-                        alert_id: str = None):
+                        alert_id: str = None, chat_id: str = None, to_email: str = None):
     """
     Gửi Telegram + Email trong thread riêng.
     Hàm này được gọi từ threading.Thread, không block camera.
     Sau khi gửi thành công, cập nhật sent_to_manager = true trong DB.
+
+    chat_id / to_email: người nhận lấy từ alert_settings; None → fallback .env.
     """
     message = format_alert_message(
         driver_name=driver_name,
@@ -102,11 +134,11 @@ def _send_notifications(driver_name: str, alert_type: str, count: int,
     email_ok = False
     try:
         if image_path:
-            telegram_ok = bool(send_photo_alert(image_path, message))
-            email_ok = bool(send_email_with_image(subject=subject, body=message, image_path=image_path))
+            telegram_ok = bool(send_photo_alert(image_path, message, chat_id=chat_id))
+            email_ok = bool(send_email_with_image(subject=subject, body=message, image_path=image_path, to_email=to_email))
         else:
-            telegram_ok = bool(send_text_alert(message))
-            email_ok = bool(send_email_alert(subject=subject, body=message))
+            telegram_ok = bool(send_text_alert(message, chat_id=chat_id))
+            email_ok = bool(send_email_alert(subject=subject, body=message, to_email=to_email))
     except Exception as e:
         logger.error(f"Gửi thông báo thất bại cho {driver_name}: {e}")
 
@@ -118,6 +150,43 @@ def _send_notifications(driver_name: str, alert_type: str, count: int,
 
     if alert_id:
         update_alert_sent_status(alert_id, sent_ok)
+
+
+def _escalate(driver_id: str, alert_type: str, ear: float, mar: float,
+              frame, alert_id: str, count: int, cooldown_seconds: int,
+              chat_id: str = None, to_email: str = None) -> None:
+    """
+    Thực hiện escalation: tôn trọng cooldown → chụp ảnh → gửi cho người nhận
+    đã đăng ký (chat_id/to_email từ alert_settings; token/SMTP vẫn từ .env),
+    chạy thread riêng.
+
+    Dùng chung cho cả luồng nhanh (high, cooldown ngắn) và luồng chậm.
+    """
+    if _is_escalation_cooldown(driver_id, cooldown_seconds):
+        logger.info(f"Driver {driver_id[:8]} đang trong cooldown escalation, bỏ qua")
+        return
+
+    _last_escalation_time[driver_id] = time.time()
+
+    driver = get_driver_by_id(driver_id)
+    driver_name = driver.get("full_name", "Không xác định") if driver else "Không xác định"
+    vehicle = None
+
+    logger.critical(
+        f"ESCALATION: driver={driver_name} | type={alert_type} | count={count}"
+    )
+
+    image_path = None
+    if frame is not None:
+        image_path = _capture_evidence(frame, driver_id, alert_type)
+
+    notify_thread = threading.Thread(
+        target=_send_notifications,
+        args=(driver_name, alert_type, count, vehicle, ear, mar, image_path,
+              alert_id, chat_id, to_email),
+        daemon=True,
+    )
+    notify_thread.start()
 
 
 def process_violation(
@@ -180,36 +249,26 @@ def process_violation(
     alert_id = result_msg if success else None
     _mark_alert_saved(driver_id, alert_type)
 
-    # --- 3. Đếm vi phạm trong 5 phút ---
-    count = count_recent_alerts(driver_id, ESCALATION_THRESHOLD_MINUTES)
-    logger.info(f"Số vi phạm trong {ESCALATION_THRESHOLD_MINUTES} phút: {count}")
+    # --- 3. Đọc cấu hình (GĐ2: chỉnh từ trang Cài đặt; thiếu → hằng số GĐ1) ---
+    settings = get_alert_settings()
+    fast_window = _cfg_int(settings.get("high_fast_window_seconds"), HIGH_FAST_WINDOW_SECONDS)
+    fast_count = _cfg_int(settings.get("high_fast_count"), HIGH_FAST_COUNT)
+    high_cooldown = _cfg_int(settings.get("high_escalation_cooldown_seconds"), HIGH_ESCALATION_COOLDOWN_SECONDS)
+    chat_id = settings.get("telegram_chat_id")
+    to_email = settings.get("manager_email")
 
-    # --- 4. Escalation nếu >= 3 lần ---
-    if count >= ESCALATION_THRESHOLD_COUNT:
-        if _is_escalation_cooldown(driver_id):
-            logger.info(f"Driver {driver_id[:8]} đang trong cooldown escalation, bỏ qua")
+    # --- 4. LUỒNG NHANH: mức high, >= fast_count trong cửa sổ ngắn ---
+    if alert_level == "high":
+        high_count = count_recent_high_alerts(driver_id, fast_window)
+        logger.info(f"Số high trong {fast_window}s: {high_count}")
+        if high_count >= fast_count:
+            _escalate(driver_id, alert_type, ear, mar, frame, alert_id,
+                      high_count, high_cooldown, chat_id, to_email)
             return
 
-        _last_escalation_time[driver_id] = time.time()
-
-        # Lấy thông tin tài xế để gửi thông báo
-        driver = get_driver_by_id(driver_id)
-        driver_name = driver.get("full_name", "Không xác định") if driver else "Không xác định"
-        vehicle = None
-
-        logger.critical(
-            f"ESCALATION: driver={driver_name} | type={alert_type} | count={count}"
-        )
-
-        # Chụp ảnh minh chứng
-        image_path = None
-        if frame is not None:
-            image_path = _capture_evidence(frame, driver_id, alert_type)
-
-        # Gửi Telegram + Email trong thread riêng
-        notify_thread = threading.Thread(
-            target=_send_notifications,
-            args=(driver_name, alert_type, count, vehicle, ear, mar, image_path, alert_id),
-            daemon=True,
-        )
-        notify_thread.start()
+    # --- 5. LUỒNG CHẬM: tích lũy medium+high trong cửa sổ phút ---
+    count = count_recent_alerts(driver_id, ESCALATION_THRESHOLD_MINUTES)
+    logger.info(f"Số vi phạm trong {ESCALATION_THRESHOLD_MINUTES} phút: {count}")
+    if count >= ESCALATION_THRESHOLD_COUNT:
+        _escalate(driver_id, alert_type, ear, mar, frame, alert_id,
+                  count, ESCALATION_COOLDOWN_SECONDS, chat_id, to_email)

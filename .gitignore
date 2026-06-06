@@ -57,6 +57,9 @@ models/*.pb
 # Uploaded files (user avatars, images)
 static/uploads/
 
+# Capture images (violation snapshots)
+static/captures/
+
 # Flask session files
 flask_session/
 instance/

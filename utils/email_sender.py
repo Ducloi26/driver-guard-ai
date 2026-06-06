@@ -25,32 +25,40 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 MANAGER_EMAIL = os.getenv("MANAGER_EMAIL")
 
 
-def _check_config() -> bool:
-    """Kiểm tra đã cấu hình SMTP trong .env chưa."""
-    if not all([SMTP_HOST, SMTP_USER, SMTP_PASSWORD, MANAGER_EMAIL]):
-        logger.warning("Chưa cấu hình SMTP trong .env — bỏ qua gửi email")
+def _check_config(to_email: str = None) -> bool:
+    """
+    Kiểm tra đã đủ cấu hình SMTP để gửi chưa.
+
+    Thông tin SMTP (host/user/password) LUÔN từ .env (bí mật). Người nhận
+    (to_email) có thể truyền từ alert_settings; None → fallback về .env.
+    """
+    effective_to = to_email or MANAGER_EMAIL
+    if not all([SMTP_HOST, SMTP_USER, SMTP_PASSWORD, effective_to]):
+        logger.warning("Chưa đủ cấu hình SMTP (.env) hoặc thiếu email nhận — bỏ qua gửi email")
         return False
     return True
 
 
-def send_email_alert(subject: str, body: str) -> bool:
+def send_email_alert(subject: str, body: str, to_email: str = None) -> bool:
     """
     Gửi email text thuần đến quản lý.
 
     Args:
         subject: tiêu đề email
         body: nội dung email
+        to_email: người nhận (từ alert_settings); None → lấy từ .env
 
     Returns:
         True nếu gửi thành công, False nếu lỗi
     """
-    if not _check_config():
+    if not _check_config(to_email):
         return False
 
+    recipient = to_email or MANAGER_EMAIL
     try:
         msg = MIMEMultipart()
         msg["From"] = SMTP_USER
-        msg["To"] = MANAGER_EMAIL
+        msg["To"] = recipient
         msg["Subject"] = subject
 
         msg.attach(MIMEText(body, "plain", "utf-8"))
@@ -58,9 +66,9 @@ def send_email_alert(subject: str, body: str) -> bool:
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
             server.starttls()
             server.login(SMTP_USER, SMTP_PASSWORD)
-            server.sendmail(SMTP_USER, MANAGER_EMAIL, msg.as_string())
+            server.sendmail(SMTP_USER, recipient, msg.as_string())
 
-        logger.info(f"Đã gửi email cảnh báo đến {MANAGER_EMAIL}")
+        logger.info(f"Đã gửi email cảnh báo đến {recipient}")
         return True
 
     except Exception as e:
@@ -68,7 +76,7 @@ def send_email_alert(subject: str, body: str) -> bool:
         return False
 
 
-def send_email_with_image(subject: str, body: str, image_path: str) -> bool:
+def send_email_with_image(subject: str, body: str, image_path: str, to_email: str = None) -> bool:
     """
     Gửi email HTML kèm ảnh minh chứng đính kèm đến quản lý.
 
@@ -76,21 +84,23 @@ def send_email_with_image(subject: str, body: str, image_path: str) -> bool:
         subject: tiêu đề email
         body: nội dung mô tả vi phạm
         image_path: đường dẫn file ảnh minh chứng
+        to_email: người nhận (từ alert_settings); None → lấy từ .env
 
     Returns:
         True nếu gửi thành công, False nếu lỗi
     """
-    if not _check_config():
+    if not _check_config(to_email):
         return False
 
     if not os.path.exists(image_path):
         logger.error(f"Không tìm thấy file ảnh: {image_path}")
         return False
 
+    recipient = to_email or MANAGER_EMAIL
     try:
         msg = MIMEMultipart()
         msg["From"] = SMTP_USER
-        msg["To"] = MANAGER_EMAIL
+        msg["To"] = recipient
         msg["Subject"] = subject
 
         html_body = f"""
@@ -122,9 +132,9 @@ def send_email_with_image(subject: str, body: str, image_path: str) -> bool:
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
             server.starttls()
             server.login(SMTP_USER, SMTP_PASSWORD)
-            server.sendmail(SMTP_USER, MANAGER_EMAIL, msg.as_string())
+            server.sendmail(SMTP_USER, recipient, msg.as_string())
 
-        logger.info(f"Đã gửi email + ảnh cảnh báo đến {MANAGER_EMAIL}")
+        logger.info(f"Đã gửi email + ảnh cảnh báo đến {recipient}")
         return True
 
     except Exception as e:
